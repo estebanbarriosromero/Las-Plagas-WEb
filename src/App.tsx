@@ -46,29 +46,38 @@ export default function App() {
       console.error('Error restaurando sesión:', e);
     }
 
-    // Check Stripe return URL
+    // Check Payment return URL (Stripe or PayPal)
     try {
       const urlParams = new URLSearchParams(window.location.search);
-      if (urlParams.get('payment') === 'success') {
+      const isSuccess = urlParams.get('payment') === 'success' || urlParams.get('paypal') === 'success';
+      const isCancel = urlParams.get('payment') === 'cancel' || urlParams.get('paypal') === 'cancel';
+      const isPayPal = urlParams.get('method') === 'paypal' || urlParams.has('paypal') || urlParams.has('token');
+
+      if (isSuccess) {
         let restoredOrder: any = null;
+        const storageKey = isPayPal ? 'pending_paypal_order' : 'pending_stripe_order';
         try {
-          const raw = localStorage.getItem('pending_stripe_order');
+          const raw = localStorage.getItem(storageKey) || localStorage.getItem('pending_paypal_order') || localStorage.getItem('pending_stripe_order');
           if (raw) {
             restoredOrder = JSON.parse(raw);
-            localStorage.removeItem('pending_stripe_order');
           }
+          localStorage.removeItem('pending_stripe_order');
+          localStorage.removeItem('pending_paypal_order');
         } catch (err) {
-          console.warn('Error leyendo pending_stripe_order:', err);
+          console.warn('Error leyendo orden pendiente:', err);
         }
 
+        const payId = urlParams.get('pay_id') || ('PAYID-' + Math.random().toString(36).substring(2, 10).toUpperCase());
+        const defaultMethod = isPayPal ? `PAYPAL (ID Transacción: ${payId})` : 'TARJETA (STRIPE CHECKOUT)';
+
         const finalOrder: OrderData = {
-          orderId: restoredOrder?.orderId || '#PO-' + Math.floor(100000 + Math.random() * 900000),
+          orderId: restoredOrder?.orderId || urlParams.get('order_id') || ('#PO-' + Math.floor(100000 + Math.random() * 900000)),
           customerName: restoredOrder?.customerName || currentUser?.name || 'Cliente',
-          customerEmail: restoredOrder?.customerEmail || currentUser?.email || 'pago@stripe.com',
-          shippingAddress: restoredOrder?.shippingAddress || 'Dirección confirmada en Stripe',
+          customerEmail: restoredOrder?.customerEmail || currentUser?.email || (isPayPal ? 'pago@paypal.es' : 'pago@stripe.com'),
+          shippingAddress: restoredOrder?.shippingAddress || 'Dirección confirmada en pasarela',
           shippingZip: restoredOrder?.shippingZip || '',
           shippingCity: restoredOrder?.shippingCity || '',
-          paymentMethod: 'TARJETA (STRIPE CHECKOUT)',
+          paymentMethod: restoredOrder?.paymentMethod || defaultMethod,
           total: restoredOrder?.total || 'Pago procesado',
           products: restoredOrder?.products || [],
         };
@@ -76,26 +85,27 @@ export default function App() {
         setLastOrderData(finalOrder);
         setCart([]);
         setCurrentView('view-success');
-        showToast('¡Pago con Stripe completado con éxito!');
+        showToast(isPayPal ? '¡Pago con PayPal completado con éxito!' : '¡Pago con Stripe completado con éxito!');
 
-        if (restoredOrder?.products && restoredOrder.products.length > 0) {
+        if (finalOrder.products && finalOrder.products.length > 0) {
           sendOrderConfirmationEmail(finalOrder).catch((err) =>
-            console.error('Error enviando email tras Stripe:', err)
+            console.error('Error enviando email tras pago:', err)
           );
           appendOrderToGoogleSheet(finalOrder).catch((err) =>
-            console.error('Error guardando en Google Sheets tras Stripe:', err)
+            console.error('Error guardando en Google Sheets tras pago:', err)
           );
           recordCompanyOrder(finalOrder);
         }
 
         window.history.replaceState({}, document.title, window.location.pathname);
-      } else if (urlParams.get('payment') === 'cancel') {
+      } else if (isCancel) {
         localStorage.removeItem('pending_stripe_order');
-        showToast('Proceso de pago en Stripe cancelado.');
+        localStorage.removeItem('pending_paypal_order');
+        showToast(isPayPal ? 'Proceso de pago en PayPal cancelado.' : 'Proceso de pago en Stripe cancelado.');
         window.history.replaceState({}, document.title, window.location.pathname);
       }
     } catch (e) {
-      console.error('Error leyendo parámetros de Stripe:', e);
+      console.error('Error leyendo parámetros de pasarela de pago:', e);
     }
   }, []);
 

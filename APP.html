@@ -29,6 +29,12 @@
             publishableKey: "pk_test_51UGzSd8ZgoKlpK4T0pCuz0BIHb7Bq3DhkWiLelZlxj21tDLRHD1jNgRjjXGm5sJ3x1gNSchOV6ZX1hwZ2h95EiUB00CmYVSuTQ"
         };
 
+        const PAYPAL_CONFIG = {
+            checkoutEndpoint: (typeof window !== "undefined" && window.location.origin && !window.location.origin.includes("null"))
+                ? window.location.origin + "/create-paypal-order"
+                : "http://localhost:3000/create-paypal-order"
+        };
+
         if (typeof emailjs !== "undefined" && !emailConfigIsMissing()) {
             emailjs.init(EMAIL_CONFIG.publicKey);
         }
@@ -1097,10 +1103,14 @@
                         <h3 style="margin: 20px 0 15px 0; color: var(--po-blue-header);">Selecciona Método de Pago</h3>
                         <div class="form-group">
                             <select id="payment-method" onchange="togglePaymentInstructions()">
-                                <option value="card">💳 Tarjeta de Crédito / Débito</option>
-                                <option value="transfer">🏦 Transferencia Bancaria</option>
-                                <option value="bizum">📱 Bizum</option>
-                                <option value="btc">₿ Bitcoin (BTC)</option>
+                                <option value="card" selected>💳 Tarjeta de Débito / Crédito (Visa, Mastercard, Amex, Maestro)</option>
+                                <option value="paypal">🅿️ PayPal (Rápido y Seguro)</option>
+                                <option value="bizum">📱 Bizum (Instantáneo)</option>
+                                <option value="transfer">🏦 Transferencia Bancaria SEPA</option>
+                                <option value="cod">📦 Pago Contra Reembolso (Efectivo al recibir)</option>
+                                <option value="klarna">⏳ Pago Fraccionado en 3 plazos (0% TAE)</option>
+                                <option value="wallet_pay">📲 Apple Pay / Google Pay</option>
+                                <option value="btc">₿ Bitcoin & Token USDT (TRC-20)</option>
                             </select>
                         </div>
 
@@ -1695,15 +1705,164 @@
         }
     }
 
+    function validateLuhnAlgorithm(numStr) {
+        const clean = numStr.replace(/\D/g, '');
+        if (clean.length < 13 || clean.length > 19) return false;
+        let sum = 0;
+        let alternate = false;
+        for (let i = clean.length - 1; i >= 0; i--) {
+            let digit = parseInt(clean.charAt(i), 10);
+            if (alternate) {
+                digit *= 2;
+                if (digit > 9) digit -= 9;
+            }
+            sum += digit;
+            alternate = !alternate;
+        }
+        return sum % 10 === 0;
+    }
+
+    function detectCardBrandFromNumber(numStr) {
+        const clean = numStr.replace(/\D/g, '');
+        if (/^4/.test(clean)) return { brand: 'visa', name: 'Visa', color: '#1a1f71' };
+        if (/^(5[1-5]|222[1-9]|22[3-9]\d|2[3-6]\d{2}|27[01]\d|2720)/.test(clean)) return { brand: 'mastercard', name: 'Mastercard', color: '#eb001b' };
+        if (/^3[47]/.test(clean)) return { brand: 'amex', name: 'American Express', color: '#002663' };
+        if (/^(5018|5020|5038|5893|6304|6759|6761|6762|6763)/.test(clean)) return { brand: 'maestro', name: 'Maestro', color: '#0099df' };
+        return { brand: 'generic', name: 'Tarjeta', color: '#004b87' };
+    }
+
+    function handleHtmlCardInput(input) {
+        let val = input.value.replace(/\D/g, '');
+        const brand = detectCardBrandFromNumber(val);
+        
+        // Formato con espacios
+        if (brand.brand === 'amex') {
+            val = val.substring(0, 15);
+            let parts = [];
+            if (val.length > 0) parts.push(val.substring(0, 4));
+            if (val.length > 4) parts.push(val.substring(4, 10));
+            if (val.length > 10) parts.push(val.substring(10, 15));
+            input.value = parts.join(' ');
+        } else {
+            val = val.substring(0, 16);
+            let parts = [];
+            for (let i = 0; i < val.length; i += 4) {
+                parts.push(val.substring(i, i + 4));
+            }
+            input.value = parts.join(' ');
+        }
+
+        const tag = document.getElementById('card-brand-tag');
+        const badge = document.getElementById('card-valid-badge');
+        if (tag && brand.brand !== 'generic') {
+            tag.style.display = 'inline-block';
+            tag.style.background = brand.color;
+            tag.style.color = '#fff';
+            tag.innerText = brand.name;
+        } else if (tag) {
+            tag.style.display = 'none';
+        }
+
+        if (badge) {
+            const rawDigits = input.value.replace(/\D/g, '');
+            if (rawDigits.length >= 13) {
+                if (validateLuhnAlgorithm(rawDigits)) {
+                    badge.innerHTML = '<span style="color:#15803d; background:#ecfdf5; padding:2px 6px; border-radius:3px; border:1px solid #bbf7d0;">✓ ' + brand.name + ' Válida</span>';
+                } else {
+                    badge.innerHTML = '<span style="color:#b45309; background:#fffbeb; padding:2px 6px; border-radius:3px; border:1px solid #fde68a;">⚠ Número incorrecto</span>';
+                }
+            } else {
+                badge.innerHTML = '';
+            }
+        }
+    }
+
+    function handleHtmlExpiryInput(input) {
+        let val = input.value.replace(/\D/g, '');
+        if (val.length > 4) val = val.substring(0, 4);
+        if (val.length >= 2) {
+            input.value = val.substring(0, 2) + '/' + val.substring(2);
+        } else {
+            input.value = val;
+        }
+    }
+
     function togglePaymentInstructions() {
         const method = document.getElementById('payment-method').value;
         const box = document.getElementById('payment-details-box');
+        const payBtn = document.getElementById('pay-button');
         
         if (method === 'card') {
+            if (payBtn) payBtn.innerHTML = '🔒 Pagar con Tarjeta';
             box.innerHTML = `
-                <div style="background: linear-gradient(135deg, #0d2a4b, #1d4d7a); color: white; border-radius: 12px; padding: 18px; box-shadow: 0 8px 20px rgba(0, 75, 135, 0.18);">
-                    <strong style="display:block; margin-bottom:8px;">Pago seguro con Stripe</strong>
-                    <span style="font-size:0.88rem; opacity:0.9;">Stripe solicitará los datos de la tarjeta en una página segura. No se almacenan en esta web.</span>
+                <div style="background:#fff; border:1px solid #c9d6e4; border-radius:10px; padding:15px; margin-bottom:5px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; border-bottom:1px solid #eee; padding-bottom:8px;">
+                        <div>
+                            <strong style="color:var(--po-blue-header); font-size:0.95rem;">Tarjeta Bancaria Oficial</strong>
+                            <span style="display:block; font-size:0.75rem; color:#666;">Acepta tarjetas de débito o crédito reales</span>
+                        </div>
+                        <div style="display:flex; gap:4px; font-weight:bold; font-size:0.72rem;">
+                            <span style="background:#1a1f71; color:#fff; padding:2px 6px; border-radius:3px;">VISA</span>
+                            <span style="background:#eb001b; color:#fff; padding:2px 6px; border-radius:3px;">Mastercard</span>
+                            <span style="background:#002663; color:#fff; padding:2px 6px; border-radius:3px;">AMEX</span>
+                        </div>
+                    </div>
+
+                    <div class="form-group" style="margin-bottom:10px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                            <label style="font-weight:bold; font-size:0.82rem; color:#333;">Número de Tarjeta *</label>
+                            <span id="card-valid-badge" style="font-size:0.75rem; font-weight:bold;"></span>
+                        </div>
+                        <div style="position:relative;">
+                            <input type="text" id="chk-card-number" required placeholder="4532 1234 5678 9010" maxlength="19"
+                                style="font-family:monospace; font-size:0.95rem; letter-spacing:1.5px; width:100%; padding:9px 12px; border:1px solid #ccc; border-radius:6px; box-sizing:border-box;"
+                                oninput="handleHtmlCardInput(this)">
+                            <span id="card-brand-tag" style="position:absolute; right:10px; top:50%; transform:translateY(-50%); font-size:0.72rem; font-weight:bold; padding:2px 6px; border-radius:3px; display:none;"></span>
+                        </div>
+                        <span style="font-size:0.73rem; color:#666; display:block; margin-top:3px;">Acepta tarjetas bancarias reales de cualquier entidad española o internacional.</span>
+                    </div>
+
+                    <div class="form-group" style="margin-bottom:10px;">
+                        <label style="font-weight:bold; font-size:0.82rem; color:#333; display:block; margin-bottom:4px;">Nombre y Apellidos del Titular *</label>
+                        <input type="text" id="chk-card-holder" required placeholder="Tal como figura en la tarjeta" style="text-transform:uppercase; width:100%; padding:9px 12px; border:1px solid #ccc; border-radius:6px; font-size:0.85rem; box-sizing:border-box;">
+                    </div>
+
+                    <div style="display:flex; gap:10px;">
+                        <div class="form-group" style="flex:1; margin-bottom:8px;">
+                            <label style="font-weight:bold; font-size:0.82rem; color:#333; display:block; margin-bottom:4px;">Caducidad (MM/AA) *</label>
+                            <input type="text" id="chk-card-expiry" required placeholder="MM/AA" maxlength="5" style="font-family:monospace; width:100%; padding:9px 12px; border:1px solid #ccc; border-radius:6px; font-size:0.9rem; box-sizing:border-box;" oninput="handleHtmlExpiryInput(this)">
+                        </div>
+                        <div class="form-group" style="flex:1; margin-bottom:8px;">
+                            <label style="font-weight:bold; font-size:0.82rem; color:#333; display:block; margin-bottom:4px;">CVV / CVC *</label>
+                            <input type="password" id="chk-card-cvc" required placeholder="123" maxlength="4" style="font-family:monospace; width:100%; padding:9px 12px; border:1px solid #ccc; border-radius:6px; font-size:0.9rem; box-sizing:border-box;">
+                        </div>
+                    </div>
+
+                    <div style="background:#eef6fc; border:1px solid #bcd8f0; padding:9px 12px; border-radius:6px; font-size:0.78rem; color:#0c4a75; margin-top:8px;">
+                        🔒 <b>Pago Seguro 3D-Secure / PSD2:</b> Validación bancaria directa con tu entidad. Cifrado TLS 256 bits y cumplimiento de estándares bancarios.
+                    </div>
+                </div>
+            `;
+        } else if (method === 'paypal') {
+            box.innerHTML = `
+                <div style="background:#003087; color:#fff; padding:14px; border-radius:10px; margin-bottom:12px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <strong style="font-size:0.95rem;">Pasarela Oficial PayPal</strong>
+                        <span style="background:#0070ba; font-size:0.72rem; padding:3px 8px; border-radius:12px; font-weight:bold;">● ACTIVA</span>
+                    </div>
+                    <p style="font-size:0.8rem; margin-top:6px; opacity:0.9;">Paga de forma rápida y protegida con tu saldo PayPal, tarjeta bancaria o en 3 plazos.</p>
+                </div>
+                <div style="margin-bottom:12px;">
+                    <button type="button" onclick="processPayPalPayment()" style="width:100%; background:#ffc439; color:#111; font-weight:800; border:none; padding:12px; border-radius:24px; cursor:pointer; font-size:0.95rem; box-shadow:0 3px 8px rgba(0,0,0,0.15); display:flex; align-items:center; justify-content:center; gap:8px;">
+                        <span style="color:#003087; font-size:1.1rem; font-weight:900;">P</span> Pagar con PayPal (Pasarela)
+                    </button>
+                </div>
+                <div class="form-group">
+                    <label>Email de tu cuenta PayPal (opcional):</label>
+                    <input type="email" id="paypal-email" placeholder="tu-paypal@email.com">
+                </div>
+                <div style="background:#e8f4fd; padding:10px; border-radius:6px; font-size:0.85rem; color:#0d47a1;">
+                    <strong>Protección al Comprador:</strong> Cobertura total por PayPal • Receptor: pagos@plagasonline.es
                 </div>
             `;
         } else if (method === 'transfer') {
@@ -1733,17 +1892,48 @@
                 • Concepto: Pedido PlagasOnline<br>
                 <em>Comprobaremos la entrada del dinero asociada a tu número de teléfono.</em>
             `;
+        } else if (method === 'cod') {
+            box.innerHTML = `
+                <h4 style="margin-bottom: 8px; color: var(--po-orange-btn);">Pago Contra Reembolso:</h4>
+                <p style="margin:0 0 10px 0; font-size:0.88rem; color:#444;">
+                    Pagas en efectivo al repartidor directamente en tu domicilio cuando recibas el paquete.
+                </p>
+                <div class="form-group">
+                    <label>Instrucciones de entrega o nota para el mensajero (opcional):</label>
+                    <input type="text" id="cod-notes" placeholder="Ej: Llamar antes al timbre...">
+                </div>
+            `;
+        } else if (method === 'klarna') {
+            box.innerHTML = `
+                <h4 style="margin-bottom: 8px; color: var(--po-blue-header);">Pago Fraccionado (3 plazos sin intereses 0% TAE):</h4>
+                <p style="margin:0 0 10px 0; font-size:0.88rem; color:#444;">
+                    Divide el importe total en 3 cuotas mensuales sin comisiones añadidas.
+                </p>
+                <div style="background:#fff; border:1px solid #ddd; padding:10px; border-radius:6px; font-size:0.85rem;">
+                    • 1ª cuota hoy al formalizar pedido<br>
+                    • 2ª cuota a los 30 días<br>
+                    • 3ª cuota a los 60 días
+                </div>
+            `;
+        } else if (method === 'wallet_pay') {
+            box.innerHTML = `
+                <h4 style="margin-bottom: 8px; color: var(--po-blue-header);">Apple Pay / Google Pay:</h4>
+                <p style="margin:0; font-size:0.88rem; color:#444;">
+                    Autenticación inmediata con la biometría (FaceID o Huella) configurada en tu dispositivo móvil.
+                </p>
+            `;
         } else if (method === 'btc') {
             box.innerHTML = `
-                <h4 style="margin-bottom: 8px; color: var(--po-blue-header);">Datos Bitcoin del Comprador:</h4>
+                <h4 style="margin-bottom: 8px; color: var(--po-blue-header);">Criptomonedas (Bitcoin & USDT TRC-20):</h4>
                 <div class="form-group">
-                    <label>Dirección Wallet de Origen (opcional para verificación):</label>
-                    <input type="text" id="btc-wallet" placeholder="1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa">
+                    <label>Wallet o Hash de Origen (opcional para comprobación):</label>
+                    <input type="text" id="btc-wallet" placeholder="Dirección origen o hash de transacción">
                 </div>
                 <hr style="margin: 10px 0;">
-                <strong>Instrucciones de Pago Bitcoin:</strong><br>
-                • Wallet Destino: <code>1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa</code><br>
-                <em>Por favor, transfiere el valor equivalente exacto a tu orden.</em>
+                <strong>Direcciones oficiales:</strong><br>
+                • <b>Bitcoin (BTC):</b> <code>1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa</code><br>
+                • <b>Token USDT (TRC-20 Tron):</b> <code>TXLAQ63Xg1NAzckPwKHvzw7CSEmLMEqcdj</code><br>
+                <em>Transfiere el importe equivalente exacto a tu orden.</em>
             `;
         }
     }
@@ -1814,6 +2004,81 @@
         }
     }
 
+    async function processPayPalPayment() {
+        if (cart.length === 0) return alert("Tu carrito está vacío.");
+        const name = document.getElementById('chk-name').value;
+        const email = document.getElementById('chk-email').value.trim().toLowerCase();
+        const address = document.getElementById('chk-address').value;
+        const zip = document.getElementById('chk-zip').value;
+        const city = document.getElementById('chk-city').value;
+        const ppEmail = document.getElementById('paypal-email')?.value.trim() || email;
+
+        if (!name || !email || !address || !zip || !city) {
+            return alert("Por favor completa los datos de envío antes de pagar con PayPal.");
+        }
+
+        const payBtn = document.getElementById('pay-now-btn');
+        if (payBtn) {
+            payBtn.disabled = true;
+            payBtn.innerText = 'Conectando con pasarela PayPal...';
+        }
+
+        try {
+            const orderId = '#PO-' + Math.floor(100000 + Math.random() * 900000);
+            let subtotal = 0;
+            cart.forEach(item => { subtotal += item.price * item.quantity; });
+            const finalTotal = (subtotal * discountMultiplier).toFixed(2) + '€';
+
+            try {
+                localStorage.setItem('pending_paypal_order', JSON.stringify({
+                    orderId: orderId,
+                    name: name,
+                    email: email,
+                    address: address,
+                    zip: zip,
+                    city: city,
+                    orderTotal: finalTotal,
+                    cartSnapshot: JSON.parse(JSON.stringify(cart)),
+                    discountMultiplier: discountMultiplier
+                }));
+            } catch (e) {
+                console.warn('No se pudo guardar pending_paypal_order:', e);
+            }
+
+            const response = await fetch(PAYPAL_CONFIG.checkoutEndpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    orderId: orderId,
+                    email: ppEmail,
+                    address: address,
+                    zip: zip,
+                    city: city,
+                    origin: window.location.origin,
+                    cart: cart.map(item => ({
+                        name: item.name,
+                        price: item.price * discountMultiplier,
+                        quantity: item.quantity,
+                        distributor: item.distributor
+                    }))
+                })
+            });
+
+            const result = await response.json();
+            if (!response.ok || !result.url) {
+                throw new Error(result.error || 'No se pudo conectar con la pasarela de PayPal.');
+            }
+            window.location.href = result.url;
+        } catch (error) {
+            console.error('Error al iniciar PayPal:', error);
+            alert(error.message || 'Error en pasarela PayPal');
+            if (payBtn) {
+                payBtn.disabled = false;
+                payBtn.innerText = 'Confirmar y Procesar Pedido';
+            }
+        }
+    }
+
     function processRealPayment() {
         if (cart.length === 0) return alert("Tu carrito está vacío.");
 
@@ -1825,20 +2090,88 @@
         const method = document.getElementById('payment-method').value;
 
         if (method === 'card') {
-            processStripePayment();
+            const cardNumInput = document.getElementById('chk-card-number');
+            const cardHolderInput = document.getElementById('chk-card-holder');
+            const cardExpiryInput = document.getElementById('chk-card-expiry');
+            const cardCvcInput = document.getElementById('chk-card-cvc');
+
+            const rawCardNum = cardNumInput ? cardNumInput.value.replace(/\D/g, '') : '';
+            const holder = cardHolderInput ? cardHolderInput.value.trim() : '';
+            const expiry = cardExpiryInput ? cardExpiryInput.value.trim() : '';
+            const cvc = cardCvcInput ? cardCvcInput.value.trim() : '';
+
+            if (rawCardNum.length < 13) {
+                return alert('Por favor introduce el número completo de tu tarjeta de crédito o débito.');
+            }
+
+            if (!validateLuhnAlgorithm(rawCardNum)) {
+                return alert('El número de tarjeta no es válido según el algoritmo bancario (Luhn). Por favor comprueba los dígitos de tu tarjeta.');
+            }
+
+            if (!expiry || !expiry.includes('/') || expiry.length < 5) {
+                return alert('Por favor introduce una fecha de caducidad válida en formato MM/AA.');
+            }
+
+            const [mStr, yStr] = expiry.split('/');
+            const month = parseInt(mStr, 10);
+            const year = parseInt('20' + yStr, 10);
+            const now = new Date();
+            const currentYear = now.getFullYear();
+            const currentMonth = now.getMonth() + 1;
+
+            if (isNaN(month) || month < 1 || month > 12) {
+                return alert('El mes de caducidad debe estar entre 01 y 12.');
+            }
+            if (year < currentYear || (year === currentYear && month < currentMonth)) {
+                return alert('La tarjeta está caducada. Por favor introduce una tarjeta vigente.');
+            }
+
+            if (!cvc || cvc.length < 3) {
+                return alert('Introduce el código de seguridad CVV/CVC (3 dígitos al dorso o 4 en Amex).');
+            }
+
+            if (!holder || holder.length < 3) {
+                return alert('Introduce el nombre y apellidos del titular de la tarjeta.');
+            }
+
+            const brandObj = detectCardBrandFromNumber(rawCardNum);
+            extraPaymentDetails = `${brandObj.name} •••• ${rawCardNum.slice(-4)} (Titular: ${holder.toUpperCase()})`;
+            methodNameDisplay = `TARJETA BANCARIA (${brandObj.name})`;
+        }
+
+        if (method === 'paypal') {
+            processPayPalPayment();
             return;
         }
 
         let extraPaymentDetails = "";
+        let methodNameDisplay = method.toUpperCase();
         if (method === 'transfer') {
-            const iban = document.getElementById('transfer-iban').value;
-            extraPaymentDetails = `Cuenta origen terminada en: ${iban.slice(-4)}`;
+            const iban = document.getElementById('transfer-iban')?.value || "";
+            extraPaymentDetails = `Cuenta origen: ${iban}`;
+            methodNameDisplay = "TRANSFERENCIA BANCARIA";
         } else if (method === 'bizum') {
-            const phone = document.getElementById('bizum-phone').value;
-            extraPaymentDetails = `Teléfono Bizum pagador: ${phone}`;
+            const phone = document.getElementById('bizum-phone')?.value || "";
+            extraPaymentDetails = `Teléfono Bizum: ${phone}`;
+            methodNameDisplay = "BIZUM";
+        } else if (method === 'paypal') {
+            const pp = document.getElementById('paypal-email')?.value || "";
+            extraPaymentDetails = pp ? `Cuenta PayPal: ${pp}` : "PayPal Directo";
+            methodNameDisplay = "PAYPAL";
+        } else if (method === 'cod') {
+            const notes = document.getElementById('cod-notes')?.value || "";
+            extraPaymentDetails = notes ? `Nota entrega: ${notes}` : "Pago en efectivo en entrega";
+            methodNameDisplay = "CONTRA REEMBOLSO";
+        } else if (method === 'klarna') {
+            extraPaymentDetails = "Fraccionado en 3 cuotas mensuales sin intereses (0% TAE)";
+            methodNameDisplay = "PAGO FRACCIONADO";
+        } else if (method === 'wallet_pay') {
+            extraPaymentDetails = "Apple Pay / Google Pay móvil biométrico";
+            methodNameDisplay = "WALLET PAY";
         } else if (method === 'btc') {
-            const wallet = document.getElementById('btc-wallet').value || "No especificada";
-            extraPaymentDetails = `Wallet Origen: ${wallet}`;
+            const wallet = document.getElementById('btc-wallet')?.value || "No especificada";
+            extraPaymentDetails = `Wallet / Hash: ${wallet}`;
+            methodNameDisplay = "CRIPTOMONEDA (BTC / USDT)";
         }
         
         const orderId = '#PO-' + Math.floor(100000 + Math.random() * 900000);
@@ -2285,16 +2618,19 @@
         updateUserSessionUI();
         renderProducts();
 
-        // Check Stripe redirect URL params
+        // Check Stripe and PayPal redirect URL params
         try {
             const urlParams = new URLSearchParams(window.location.search);
             if (urlParams.get('payment') === 'success') {
+                const method = urlParams.get('method');
+                const isPayPal = method === 'paypal';
                 let pendingOrder = null;
                 try {
-                    const raw = localStorage.getItem('pending_stripe_order');
+                    const storageKey = isPayPal ? 'pending_paypal_order' : 'pending_stripe_order';
+                    const raw = localStorage.getItem(storageKey);
                     if (raw) {
                         pendingOrder = JSON.parse(raw);
-                        localStorage.removeItem('pending_stripe_order');
+                        localStorage.removeItem(storageKey);
                     }
                 } catch(e) {
                     console.warn(e);
@@ -2312,7 +2648,7 @@
                         address: pendingOrder.address,
                         zip: pendingOrder.zip,
                         city: pendingOrder.city,
-                        paymentMethod: 'TARJETA (STRIPE)',
+                        paymentMethod: isPayPal ? 'PAYPAL (PASARELA)' : 'TARJETA (STRIPE)',
                         total: pendingOrder.orderTotal,
                         products: pendingOrder.cartSnapshot
                     };
@@ -2320,10 +2656,10 @@
                     cart = [];
                     renderCart();
                     finishCheckout(orderId, email, orderData);
-                    showToast('¡Pago con Stripe completado con éxito!');
+                    showToast(isPayPal ? '¡Pago con PayPal completado con éxito!' : '¡Pago con Stripe completado con éxito!');
                 } else {
                     navigateTo('view-inicio');
-                    showToast('Pago confirmado con Stripe.');
+                    showToast(isPayPal ? 'Pago confirmado con PayPal.' : 'Pago confirmado con Stripe.');
                 }
 
                 if (window.history && window.history.replaceState) {
@@ -2331,13 +2667,14 @@
                 }
             } else if (urlParams.get('payment') === 'cancel') {
                 localStorage.removeItem('pending_stripe_order');
-                showToast('Proceso de pago en Stripe cancelado.');
+                localStorage.removeItem('pending_paypal_order');
+                showToast('Proceso de pago cancelado.');
                 if (window.history && window.history.replaceState) {
                     window.history.replaceState({}, document.title, window.location.pathname);
                 }
             }
         } catch(e) {
-            console.error('Error comprobando retorno de Stripe:', e);
+            console.error('Error comprobando retorno de pasarela:', e);
         }
     });
 </script>

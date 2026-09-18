@@ -65,4 +65,12 @@ export interface OrderData {
   date?: string;
 }
 
-export type PaymentMethodType = 'card' | 'transfer' | 'bizum' | 'btc';
+export type PaymentMethodType =
+  | 'card'
+  | 'paypal'
+  | 'bizum'
+  | 'transfer'
+  | 'cod'
+  | 'klarna'
+  | 'wallet_pay'
+  | 'btc';
