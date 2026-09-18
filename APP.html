@@ -1,0 +1,2287 @@
+<!DOCTYPE html>
+<html lang="es">
+<head> 
+    <script type="text/javascript" src="https://jsdelivr.net"></script>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PlagasOnline - Especialistas en Control de Plagas</title>
+    
+    <!-- EmailJS SDK -->
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+    <!-- SheetJS: exportación de pedidos a Excel -->
+    <script type="text/javascript" src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+    <script type="text/javascript">
+        const EMAIL_CONFIG = {
+            publicKey: "PTCNbBrXG3qTAF6_5",
+            serviceId: "service_n8r7a8l",
+            templateId: "template_l7xi94c"
+        };
+
+        const SHEETS_CONFIG = {
+            appScriptUrl: "https://script.google.com/macros/s/TU_WEB_APP_ID/exec"
+        };
+
+        if (typeof emailjs !== "undefined" && !emailConfigIsMissing()) {
+            emailjs.init(EMAIL_CONFIG.publicKey);
+        }
+
+        function emailConfigIsMissing() {
+            return Object.values(EMAIL_CONFIG).some(value => !value || /^(YOUR_|TU_)/i.test(value));
+        }
+    </script>
+
+    <style>
+        :root {
+            --po-blue-header: #004b87;
+            --po-blue-nav: #003366;
+            --po-green-accent: #2e7d32;
+            --po-orange-btn: #e65100;
+            --po-bg: #f4f6f9;
+            --po-text: #333333;
+            --card-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            --transition-smooth: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: var(--po-bg);
+            color: var(--po-text);
+            display: flex;
+            justify-content: center;
+            padding: 15px;
+            min-height: 100vh;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 1100px;
+            background-color: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.12);
+            display: flex;
+            flex-direction: column;
+        }
+
+        header {
+            background-color: var(--po-blue-header);
+            color: white;
+            padding: 15px 25px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 4px solid var(--po-green-accent);
+            gap: 15px;
+            flex-wrap: wrap;
+            border-top-left-radius: 8px;
+            border-top-right-radius: 8px;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+
+        .logo {
+            font-weight: 900;
+            font-size: 1.8rem;
+            letter-spacing: -0.5px;
+            color: #ffffff;
+            cursor: pointer;
+            transition: var(--transition-smooth);
+        }
+
+        .logo:hover { transform: scale(1.02); }
+        .logo span { color: #81c784; }
+
+        .search-box {
+            flex: 1;
+            max-width: 380px;
+            position: relative;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 8px 15px;
+            border: 2px solid transparent;
+            border-radius: 20px;
+            outline: none;
+            font-size: 0.9rem;
+            transition: var(--transition-smooth);
+        }
+
+        .search-box input:focus {
+            border-color: #81c784;
+            box-shadow: 0 0 8px rgba(129, 199, 132, 0.5);
+        }
+
+        .header-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 0.9rem;
+        }
+
+        .user-greeting {
+            background: rgba(255,255,255,0.2);
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-weight: 600;
+        }
+
+        nav {
+            background-color: var(--po-blue-nav);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 20px;
+            flex-wrap: wrap;
+            position: sticky;
+            top: 73px;
+            z-index: 999;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+
+        .nav-links { display: flex; }
+
+        .nav-btn {
+            background: none;
+            border: none;
+            color: white;
+            padding: 14px 18px;
+            font-weight: 700;
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: var(--transition-smooth);
+        }
+
+        .nav-btn:hover, .nav-btn.active { background-color: var(--po-green-accent); }
+
+        .cart-status {
+            background-color: var(--po-orange-btn);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 4px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: var(--transition-smooth);
+        }
+
+        .cart-status:hover {
+            transform: scale(1.05);
+            background-color: #c63f00;
+        }
+
+        .cart-pop { animation: pop 0.3s ease-in-out; }
+
+        @keyframes pop {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.25); }
+            100% { transform: scale(1); }
+        }
+
+        content {
+            padding: 25px;
+            min-height: 500px;
+        }
+
+        .view-section {
+            display: none;
+            flex-direction: column;
+            gap: 20px;
+            opacity: 0;
+            transform: translateY(10px);
+            transition: opacity 0.4s ease, transform 0.4s ease;
+        }
+
+        .view-section.active {
+            display: flex;
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .hero-banner {
+            background: linear-gradient(rgba(0,51,102,0.8), rgba(0,51,102,0.8)), url('https://images.unsplash.com/photo-1584467735815-f778f274e296?w=1000&auto=format&fit=crop');
+            background-size: cover;
+            background-position: center;
+            color: white;
+            padding: 40px 30px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .filter-bar {
+            display: flex;
+            gap: 15px;
+            background: #eef2f5;
+            padding: 12px 18px;
+            border-radius: 6px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .filter-bar select {
+            padding: 6px 12px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+            outline: none;
+            font-weight: 600;
+        }
+
+        .product-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+            gap: 20px;
+        }
+
+        .product-card {
+            background: #ffffff;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            transition: var(--transition-smooth);
+            box-shadow: var(--card-shadow);
+            position: relative;
+            animation: fadeInUp 0.4s ease forwards;
+        }
+
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(12px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .product-card:hover {
+            border-color: var(--po-blue-header);
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.12);
+        }
+
+        .distributor-tag {
+            font-size: 0.75rem;
+            color: #777;
+            text-transform: uppercase;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .badge-container {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 4px;
+            z-index: 2;
+        }
+
+        .badge {
+            font-size: 0.7rem;
+            font-weight: 800;
+            padding: 4px 8px;
+            border-radius: 12px;
+            color: white;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+            text-transform: uppercase;
+        }
+
+        .badge-discount { background-color: #d32f2f; }
+        .badge-bestseller { background-color: #f57c00; }
+        .badge-cheapest { background-color: #388e3c; }
+        .badge-recommended { background-color: #1976d2; }
+
+        .product-card .img-container {
+            overflow: hidden;
+            border-radius: 4px;
+            margin-bottom: 10px;
+            border-bottom: 1px solid #f0f0f0;
+            padding-bottom: 8px;
+            position: relative;
+            cursor: pointer;
+        }
+
+        .product-card img {
+            width: 100%;
+            height: 150px;
+            object-fit: contain;
+            transition: transform 0.4s ease;
+        }
+
+        .product-card:hover img { transform: scale(1.08); }
+
+        .product-card h4 {
+            font-size: 0.95rem;
+            color: #222;
+            margin-bottom: 4px;
+            height: 40px;
+            overflow: hidden;
+        }
+
+        .product-card .tagline {
+            font-size: 0.75rem;
+            color: var(--po-green-accent);
+            font-weight: 600;
+            margin-bottom: 8px;
+            min-height: 28px;
+            line-height: 1.2;
+        }
+
+        .rating-stars {
+            color: #ffb300;
+            font-size: 0.85rem;
+            margin-bottom: 8px;
+        }
+
+        .card-actions {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            margin-top: 8px;
+        }
+
+        .qty-input {
+            width: 45px;
+            padding: 6px;
+            text-align: center;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+
+        .product-card .price-box { margin-bottom: 4px; }
+
+        .product-card .old-price {
+            text-decoration: line-through;
+            color: #999;
+            font-size: 0.9rem;
+            margin-right: 6px;
+        }
+
+        .product-card .price {
+            color: var(--po-blue-header);
+            font-size: 1.25rem;
+            font-weight: 800;
+        }
+
+        .product-card .price.discounted { color: #d32f2f; }
+
+        .cart-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: var(--card-shadow);
+        }
+
+        .cart-table th {
+            background-color: #f1f5f9;
+            color: var(--po-blue-header);
+            text-align: left;
+            padding: 12px 15px;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+        }
+
+        .cart-table td {
+            padding: 15px;
+            border-bottom: 1px solid #e0e0e0;
+            vertical-align: middle;
+        }
+
+        .cart-item-img {
+            width: 65px;
+            height: 65px;
+            object-fit: contain;
+            border-radius: 6px;
+            border: 1px solid #eee;
+        }
+
+        .btn-remove {
+            background: #ffebee;
+            color: #c62828;
+            border: 1px solid #ffcdd2;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: var(--transition-smooth);
+        }
+
+        .btn-remove:hover {
+            background: #c62828;
+            color: white;
+        }
+
+        .empty-cart-box {
+            text-align: center;
+            padding: 40px 20px;
+            background: #ffffff;
+            border-radius: 8px;
+            box-shadow: var(--card-shadow);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .sad-cat-svg {
+            width: 160px;
+            height: 160px;
+            animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-8px); }
+        }
+
+        .btn-buy {
+            background-color: var(--po-orange-btn);
+            color: white;
+            border: none;
+            padding: 10px;
+            border-radius: 4px;
+            font-weight: 700;
+            cursor: pointer;
+            width: 100%;
+            transition: var(--transition-smooth);
+        }
+
+        .btn-buy:hover { background-color: #c63f00; }
+        .btn-buy:disabled { background-color: #cccccc; cursor: not-allowed; }
+
+        .secondary-btn {
+            background-color: #666;
+            color: white;
+            border: none;
+            padding: 8px 14px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: var(--transition-smooth);
+        }
+
+        .secondary-btn:hover { background-color: #444; }
+
+        .auth-box, .form-box {
+            background: #ffffff;
+            border: 1px solid #e0e0e0;
+            padding: 25px;
+            border-radius: 8px;
+            box-shadow: var(--card-shadow);
+        }
+
+        .auth-box {
+            max-width: 420px;
+            margin: 20px auto;
+            width: 100%;
+        }
+
+        .contact-shell {
+            display: grid;
+            grid-template-columns: 1.3fr 0.9fr;
+            gap: 24px;
+            align-items: stretch;
+        }
+
+        .contact-panel {
+            border-radius: 18px;
+            border: 1px solid #dfe8f1;
+            box-shadow: var(--card-shadow);
+            overflow: hidden;
+        }
+
+        .contact-form-card {
+            background: linear-gradient(145deg, #ffffff, #f4f9ff);
+            padding: 28px;
+        }
+
+        .section-kicker {
+            display: inline-block;
+            padding: 7px 12px;
+            background: rgba(0, 75, 135, 0.12);
+            color: var(--po-blue-header);
+            border-radius: 999px;
+            font-size: 0.72rem;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-bottom: 12px;
+        }
+
+        .contact-title {
+            color: var(--po-blue-header);
+            font-size: clamp(1.8rem, 2vw, 2.4rem);
+            margin-bottom: 10px;
+        }
+
+        .contact-subtitle {
+            color: #5e6d7d;
+            font-size: 0.98rem;
+            line-height: 1.6;
+            margin-bottom: 18px;
+        }
+
+        .contact-badges {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 22px;
+        }
+
+        .contact-badge {
+            background: #ebf8ee;
+            color: var(--po-green-accent);
+            border: 1px solid rgba(46, 125, 50, 0.2);
+            border-radius: 999px;
+            padding: 7px 12px;
+            font-size: 0.75rem;
+            font-weight: 700;
+        }
+
+        .contact-form {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .field-row {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 14px;
+        }
+
+        .field {
+            display: flex;
+            flex-direction: column;
+            gap: 7px;
+        }
+
+        .field label {
+            display: block;
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: #2d3a46;
+        }
+
+        .field input,
+        .field select,
+        .field textarea {
+            width: 100%;
+            padding: 12px 14px;
+            border: 1px solid #ced8e2;
+            border-radius: 10px;
+            font-size: 0.95rem;
+            background: #fff;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .field input:focus,
+        .field select:focus,
+        .field textarea:focus {
+            outline: none;
+            border-color: rgba(0, 75, 135, 0.8);
+            box-shadow: 0 0 0 4px rgba(0, 75, 135, 0.08);
+        }
+
+        .field textarea {
+            min-height: 140px;
+            resize: vertical;
+        }
+
+        .contact-submit {
+            background: linear-gradient(135deg, var(--po-orange-btn), #ff7a1a);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            padding: 14px 18px;
+            font-size: 1rem;
+            font-weight: 800;
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+            box-shadow: 0 10px 18px rgba(230, 81, 0, 0.22);
+        }
+
+        .contact-submit:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 14px 22px rgba(230, 81, 0, 0.28);
+        }
+
+        .contact-submit:disabled {
+            opacity: 0.7;
+            cursor: wait;
+        }
+
+        .contact-sidebar {
+            background: linear-gradient(180deg, #003366, #004b87);
+            color: white;
+            padding: 28px 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
+        }
+
+        .contact-info-header {
+            font-size: 1.35rem;
+            font-weight: 800;
+            margin-bottom: 4px;
+        }
+
+        .contact-methods {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .contact-method {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 12px;
+            padding: 14px 12px;
+        }
+
+        .contact-method-icon {
+            width: 42px;
+            height: 42px;
+            border-radius: 12px;
+            display: grid;
+            place-items: center;
+            background: rgba(129, 199, 132, 0.2);
+            font-size: 1.35rem;
+            flex-shrink: 0;
+        }
+
+        .contact-method strong {
+            display: block;
+            margin-bottom: 3px;
+            font-size: 0.92rem;
+        }
+
+        .contact-method p,
+        .contact-hours p,
+        .contact-hours span {
+            margin: 0;
+            color: rgba(255, 255, 255, 0.82);
+            line-height: 1.5;
+            font-size: 0.9rem;
+        }
+
+        .contact-hours {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 12px;
+            padding: 16px 14px;
+        }
+
+        .contact-hours strong {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 0.95rem;
+        }
+
+        .contact-mini-map {
+            margin-top: auto;
+            background: rgba(129, 199, 132, 0.14);
+            border: 1px solid rgba(129, 199, 132, 0.3);
+            border-radius: 12px;
+            padding: 14px 12px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 700;
+            color: #e9fff0;
+        }
+
+        .mini-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #81c784;
+            box-shadow: 0 0 0 4px rgba(129, 199, 132, 0.2);
+        }
+
+        .form-group { margin-bottom: 15px; }
+
+        .form-group label {
+            display: block;
+            font-size: 0.85rem;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 0.95rem;
+        }
+
+        .checkout-steps {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #e0e0e0;
+            padding-bottom: 10px;
+        }
+
+        .step { font-weight: bold; color: #888; }
+        .step.active { color: var(--po-blue-header); border-bottom: 3px solid var(--po-blue-header); padding-bottom: 8px; }
+
+        .checkout-layout {
+            display: grid;
+            grid-template-columns: 1.8fr 1.2fr;
+            gap: 25px;
+        }
+
+        .summary-box {
+            background: #f8f9fa;
+            border: 1px solid #dcdcdc;
+            padding: 20px;
+            border-radius: 6px;
+            height: fit-content;
+        }
+
+        .success-box {
+            text-align: center;
+            background: white;
+            padding: 40px;
+            border-radius: 8px;
+            border: 2px solid var(--po-green-accent);
+        }
+
+        .success-icon {
+            font-size: 4rem;
+            color: var(--po-green-accent);
+            margin-bottom: 15px;
+        }
+
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.6);
+            z-index: 2000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-overlay.show { display: flex; }
+
+        .modal-body {
+            background: white;
+            padding: 25px;
+            border-radius: 8px;
+            max-width: 500px;
+            width: 90%;
+            position: relative;
+        }
+
+        .close-modal {
+            position: absolute;
+            top: 10px; right: 15px;
+            font-size: 1.5rem;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        #toast {
+            visibility: hidden;
+            background-color: var(--po-green-accent);
+            color: #fff;
+            text-align: center;
+            border-radius: 4px;
+            padding: 12px 24px;
+            position: fixed;
+            z-index: 9999;
+            right: 20px;
+            bottom: 20px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            transform: translateY(50px);
+            transition: all 0.4s ease;
+            opacity: 0;
+        }
+
+        #toast.show {
+            visibility: visible;
+            transform: translateY(0);
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+
+<div id="toast">Notificación</div>
+
+<div class="modal-overlay" id="quick-modal">
+    <div class="modal-body">
+        <span class="close-modal" onclick="closeModal()">&times;</span>
+        <div id="modal-content"></div>
+    </div>
+</div>
+
+<div class="container">
+    <header>
+        <div class="logo" onclick="navigateTo('view-inicio')">
+            Plagas<span>Online</span>.es
+        </div>
+        
+        <div class="search-box">
+            <input type="text" id="search-input" placeholder="🔍 Buscar por marca o producto..." oninput="filterProducts()">
+        </div>
+
+        <div class="header-info">
+            <div class="user-greeting" id="user-greeting">Hola, Invitado</div>
+            <button class="secondary-btn" id="auth-btn" onclick="handleAuthAction()">Iniciar Sesión</button>
+        </div>
+    </header>
+
+    <nav>
+        <div class="nav-links">
+            <button class="nav-btn active" onclick="navigateTo('view-inicio')">Inicio</button>
+            <button class="nav-btn" onclick="navigateTo('view-productos')">Catálogo</button>
+            <button class="nav-btn" onclick="navigateTo('view-contacto')">Contacto</button>
+            <button class="nav-btn" onclick="navigateTo('view-login')">Mi Cuenta</button>
+        </div>
+        <div class="cart-status" id="cart-badge" onclick="navigateTo('view-carrito')">
+            🛒 Carrito (<span id="cart-count">0</span>)
+        </div>
+    </nav>
+
+    <content>
+        <!-- 1. INICIO -->
+        <div id="view-inicio" class="view-section active">
+            <div class="hero-banner">
+                <h1 style="font-size: 2.2rem; margin-bottom: 10px;">Soluciones Profesionales para el Control de Plagas</h1>
+                <p>Fórmula avanzada y tecnología de captura comprobada. Usa los cupones <strong>bienvenido!</strong> o <strong>cupon2026!</strong> para obtener descuentos.</p>
+                <button class="btn-buy" style="max-width: 250px; margin-top: 20px;" onclick="navigateTo('view-productos')">Ver Catálogo Completo</button>
+            </div>
+            
+            <div id="login-promo-banner" style="display:none; background:#e8f5e9; border:1px solid #81c784; padding:12px; border-radius:6px; color:#1b5e20; text-align:center;">
+                🎉 <strong>¡Oferta Socio Activada!</strong> Tienes un 20% de descuento aplicado en productos seleccionados.
+            </div>
+
+            <h3 style="border-bottom: 2px solid var(--po-blue-header); padding-bottom: 8px; margin-top: 10px;">Productos Destacados Anti-Ratas</h3>
+            <div class="product-grid" id="featured-products"></div>
+        </div>
+
+        <!-- 2. CATÁLOGO -->
+        <div id="view-productos" class="view-section">
+            <h2 style="color: var(--po-blue-header);" id="catalog-title">Catálogo General de Productos</h2>
+            
+            <div class="filter-bar">
+                <label>Categoría:</label>
+                <select id="category-filter" onchange="filterProducts()">
+                    <option value="all">Todas</option>
+                    <option value="raticidas">Raticidas y Trampas</option>
+                    <option value="insecticidas">Insecticidas</option>
+                    <option value="equipos">Equipos y Luz UV</option>
+                </select>
+
+                <label>Ordenar por:</label>
+                <select id="sort-filter" onchange="filterProducts()">
+                    <option value="default">Relevancia</option>
+                    <option value="price-asc">Precio: Menor a Mayor</option>
+                    <option value="price-desc">Precio: Mayor a Menor</option>
+                    <option value="rating">Mejor Valorados</option>
+                </select>
+            </div>
+
+            <div class="product-grid" id="all-products"></div>
+        </div>
+
+        <!-- 3. INICIAR SESIÓN -->
+        <div id="view-login" class="view-section">
+            <div class="auth-box">
+                <h2 style="margin-bottom: 18px; color: var(--po-blue-header); text-align:center;">Iniciar Sesión</h2>
+                <div class="form-group">
+                    <label>Correo Electrónico o Usuario:</label>
+                    <input type="text" id="login-user" placeholder="tu@email.com">
+                </div>
+                <div class="form-group">
+                    <label>Contraseña:</label>
+                    <input type="password" id="login-pass" placeholder="••••••••">
+                </div>
+                <button class="btn-buy" style="margin-top: 10px;" onclick="loginUser()">Acceder y Obtener 20% Desc.</button>
+                <div style="text-align: center; margin-top: 15px;">
+                    <span style="font-size: 0.9rem; color: #666;">¿No tienes cuenta?</span>
+                    <a href="#" style="color: var(--po-blue-header); font-weight: bold; text-decoration: none;" onclick="navigateTo('view-registro')"> Regístrate aquí</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- 4. REGISTRO -->
+        <div id="view-registro" class="view-section">
+            <div class="auth-box">
+                <h2 style="margin-bottom: 8px; color: var(--po-blue-header); text-align:center;">Crear Cuenta</h2>
+                <p style="font-size: 0.85rem; color: #666; text-align:center; margin-bottom: 18px;">¡Regístrate hoy y recibe 20% de descuento en artículos seleccionados!</p>
+                <div class="form-group">
+                    <label>Nombre Completo:</label>
+                    <input type="text" id="reg-name" placeholder="Ej: Esteban Pérez">
+                </div>
+                <div class="form-group">
+                    <label>Correo Electrónico:</label>
+                    <input type="email" id="reg-email" placeholder="esteban@ejemplo.com">
+                </div>
+                <div class="form-group">
+                    <label>Contraseña:</label>
+                    <input type="password" id="reg-pass" placeholder="••••••••">
+                </div>
+                <button class="btn-buy" style="margin-top: 10px;" onclick="registerUser()">Crear Cuenta y Aplicar Descuentos</button>
+                <button class="secondary-btn" style="width: 100%; margin-top: 10px;" onclick="navigateTo('view-login')">Volver al Inicio de Sesión</button>
+            </div>
+        </div>
+
+        <!-- 5. CONTACTO -->
+        <div id="view-contacto" class="view-section">
+            <div class="contact-shell">
+                <div class="contact-panel contact-form-card">
+                    <div class="section-kicker">Atención especializada</div>
+                    <h2 class="contact-title">Contacto y atención al cliente</h2>
+                    <p class="contact-subtitle">Estamos aquí para ayudarte con dudas técnicas, asesoramiento sobre productos y cualquier consulta sobre tu pedido o tratamiento.</p>
+
+                    <div class="contact-badges">
+                        <span class="contact-badge">Respuesta en 24h</span>
+                        <span class="contact-badge">Atención vía WhatsApp</span>
+                        <span class="contact-badge">Soporte técnico</span>
+                    </div>
+
+                    <form id="contact-form" class="contact-form" onsubmit="sendContactMessage(event)">
+                        <div class="field-row">
+                            <div class="field">
+                                <label for="contact-name">Nombre</label>
+                                <input type="text" id="contact-name" name="name" placeholder="Tu nombre" required>
+                            </div>
+                            <div class="field">
+                                <label for="contact-phone">Teléfono</label>
+                                <input type="tel" id="contact-phone" name="phone" placeholder="+34 600 123 456">
+                            </div>
+                        </div>
+
+                        <div class="field">
+                            <label for="contact-email">Correo electrónico</label>
+                            <input type="email" id="contact-email" name="email" placeholder="tu@email.com" required>
+                        </div>
+
+                        <div class="field">
+                            <label for="contact-type">Tipo de consulta</label>
+                            <select id="contact-type" name="subject">
+                                <option value="Consulta general">Consulta general</option>
+                                <option value="Pedido y envío">Pedido y envío</option>
+                                <option value="Asesoramiento técnico">Asesoramiento técnico</option>
+                                <option value="Reclamación o incidencia">Reclamación o incidencia</option>
+                            </select>
+                        </div>
+
+                        <div class="field">
+                            <label for="contact-message">Mensaje</label>
+                            <textarea id="contact-message" name="message" placeholder="Cuéntanos qué necesitas y te responderemos lo antes posible..." required></textarea>
+                        </div>
+
+                        <button type="submit" class="contact-submit" id="contact-submit">Enviar mensaje</button>
+                    </form>
+                </div>
+
+                <aside class="contact-panel contact-sidebar">
+                    <div class="contact-info-header">Información central</div>
+
+                    <div class="contact-methods">
+                        <div class="contact-method">
+                            <div class="contact-method-icon">📍</div>
+                            <div>
+                                <strong>Dirección</strong>
+                                <p>TO-1740, 45500 Mocejón, Toledo</p>
+                            </div>
+                        </div>
+
+                        <div class="contact-method">
+                            <div class="contact-method-icon">📞</div>
+                            <div>
+                                <strong>Teléfono gratuito</strong>
+                                <p>+34 900 123 456</p>
+                            </div>
+                        </div>
+
+                        <div class="contact-method">
+                            <div class="contact-method-icon">📱</div>
+                            <div>
+                                <strong>WhatsApp</strong>
+                                <p>+34 654 65 52 09</p>
+                            </div>
+                        </div>
+
+                        <div class="contact-method">
+                            <div class="contact-method-icon">✉️</div>
+                            <div>
+                                <strong>Email</strong>
+                                <p>soporte@plagasonline.es</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="contact-hours">
+                        <strong>Horario de atención</strong>
+                        <p>Lunes a viernes</p>
+                        <span>08:00 - 19:00 h</span>
+                    </div>
+
+                    <div class="contact-mini-map">
+                        <span class="mini-dot"></span>
+                        <span>Servicio rápido en toda España</span>
+                    </div>
+                </aside>
+            </div>
+        </div>
+
+        <!-- 6. CARRITO -->
+        <div id="view-carrito" class="view-section">
+            <h2 style="color: var(--po-blue-header);">Tu Cesta de Compras</h2>
+            <div id="cart-content"></div>
+        </div>
+
+        <!-- 7. CHECKOUT -->
+        <div id="view-checkout" class="view-section">
+            <div class="checkout-steps">
+                <span class="step">1. Carrito</span>
+                <span class="step active">2. Datos y Envío</span>
+                <span class="step active">3. Confirmación de Pago</span>
+            </div>
+
+            <div class="checkout-layout">
+                <div class="form-box">
+                    <h3 style="margin-bottom: 15px; color: var(--po-blue-header);">Datos de Envío y Facturación</h3>
+                    <form id="checkout-form" onsubmit="event.preventDefault(); processRealPayment();">
+                        <div class="form-group">
+                            <label>Nombre y Apellidos *</label>
+                            <input type="text" id="chk-name" required placeholder="Ej. Juan Pérez">
+                        </div>
+                        <div class="form-group">
+                            <label>Correo Electrónico *</label>
+                            <input type="email" id="chk-email" required placeholder="juan@ejemplo.com">
+                        </div>
+                        <div class="form-group">
+                            <label>Dirección de Entrega *</label>
+                            <input type="text" id="chk-address" required placeholder="Calle, número, piso">
+                        </div>
+                        <div style="display: flex; gap: 10px;">
+                            <div class="form-group" style="flex:1;">
+                                <label>Código Postal *</label>
+                                <input type="text" id="chk-zip" required placeholder="28001">
+                            </div>
+                            <div class="form-group" style="flex:1;">
+                                <label>Ciudad *</label>
+                                <input type="text" id="chk-city" required placeholder="Madrid">
+                            </div>
+                        </div>
+                        
+                        <h3 style="margin: 20px 0 15px 0; color: var(--po-blue-header);">Selecciona Método de Pago</h3>
+                        <div class="form-group">
+                            <select id="payment-method" onchange="togglePaymentInstructions()">
+                                <option value="card">💳 Tarjeta de Crédito / Débito</option>
+                                <option value="transfer">🏦 Transferencia Bancaria</option>
+                                <option value="bizum">📱 Bizum</option>
+                                <option value="btc">₿ Bitcoin (BTC)</option>
+                            </select>
+                        </div>
+
+                        <div id="payment-details-box" style="background: #f0f4f8; padding: 15px; border-radius: 6px; margin-bottom: 15px; font-size: 0.9rem;"></div>
+
+                        <button type="submit" id="pay-button" class="btn-buy" style="font-size: 1.1rem; padding: 12px; margin-top: 10px;">Confirmar y Procesar Pedido</button>
+                    </form>
+                </div>
+
+                <div class="summary-box">
+                    <h3 style="margin-bottom: 15px;">Resumen del Pedido</h3>
+                    <div id="checkout-summary-list"></div>
+                    
+                    <!-- SECCIÓN DE CUPONES DE DESCUENTO -->
+                    <div style="margin: 15px 0;">
+                        <label style="font-size:0.8rem; font-weight:bold; color:#555; display:block; margin-bottom:4px;">Cupones disponibles: bienvenido! | cupon2026!</label>
+                        <div style="display:flex; gap:8px;">
+                            <input type="text" id="coupon-code" placeholder="Ej: bienvenido!" style="padding:6px; flex:1; border:1px solid #ccc; border-radius:4px;">
+                            <button class="secondary-btn" onclick="applyCoupon()">Aplicar</button>
+                        </div>
+                        <span id="coupon-applied-tag" style="display:none; font-size:0.8rem; color:var(--po-green-accent); font-weight:bold; margin-top:4px;"></span>
+                    </div>
+
+                    <hr style="margin: 15px 0;">
+                    <div style="display:flex; justify-content:space-between; font-weight:bold; font-size: 1.1rem;">
+                        <span>Total a pagar:</span>
+                        <span id="checkout-total-price" style="color: var(--po-orange-btn);">0.00€</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 8. PEDIDO CONFIRMADO -->
+        <div id="view-success" class="view-section">
+            <div class="success-box">
+                <div class="success-icon">✓</div>
+                <h2 style="color: var(--po-blue-header); margin-bottom: 10px;">¡Pago Confirmado y Pedido Procesado!</h2>
+                <p style="margin-bottom: 15px;">Gracias por tu compra en <strong>PlagasOnline.es</strong>. Hemos recibido tu pago y tu pedido se encuentra en preparación.</p>
+                <p><strong>Número de Pedido:</strong> <span id="order-id" style="color: var(--po-orange-btn); font-weight: bold;">#PO-89412</span></p>
+                <p id="confirmation-email" style="margin-top: 8px;"></p>
+                <button id="company-orders-download" class="secondary-btn" style="margin-top: 18px;" onclick="downloadCompanyOrdersExcel()">Descargar Pedidos Empresa</button>
+                <button class="btn-buy" style="max-width: 220px; margin-top: 25px;" onclick="navigateTo('view-inicio')">Volver a la Tienda</button>
+            </div>
+        </div>
+    </content>
+</div>
+
+<script>
+    const products = [
+        { 
+            id: 1, 
+            name: "Cebo Mataratas Raticida en Bloque Fresco", 
+            price: 14.50, 
+            category: "raticidas",
+            rating: 4.8,
+            distributor: "Remi Control", 
+            img: "ProdottoScheda_NOCURAT_paraff_jpg.webp",
+            tagline: "★ La fórmula más efectiva del mercado contra plagas resistentes",
+            badge: "bestseller",
+            badgeText: "Nº 1 MÁS VENDIDO"
+        },
+        { 
+            id: 2, 
+            name: "Trampa Mecánica de Alta Presión Snap-Trap", 
+            price: 4.90, 
+            category: "raticidas",
+            rating: 4.3,
+            distributor: "Pestline Pro", 
+            img: "61DalXNBpgL._AC_UF894,1000_QL80_.jpg",
+            tagline: "Eficacia inmediata al menor precio garantizado",
+            badge: "cheapest",
+            badgeText: "MÁS BARATO"
+        },
+        { 
+            id: 3, 
+            name: "Estación Portacebos Raticida de Seguridad Pro", 
+            price: 18.20, 
+            category: "raticidas",
+            rating: 4.9,
+            distributor: "Remi Control", 
+            img: "porta-cebos-rata-gran-formato-profesional.jpg",
+            tagline: "Seguridad total para mascotas con diseño profesional indeformable",
+            badge: "recommended",
+            badgeText: "RECOMENDADO"
+        },
+        { 
+            id: 4, 
+            name: "Ahuyentador Ultrasónico Digital 2000 Mhz", 
+            price: 32.00, 
+            category: "equipos",
+            rating: 4.1,
+            distributor: "Radarcan Labs", 
+            img: "61MQShwtMAL.jpg",
+            tagline: "Tecnología de frecuencia variable libre de químicos",
+            badge: null
+        },
+        { 
+            id: 13, 
+            name: "Pasta Raticida Brodifacoum Máxima Atracción 500g", 
+            price: 11.90, 
+            category: "raticidas",
+            rating: 4.7,
+            distributor: "Pestline Pro", 
+            img: "https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=400&auto=format&fit=crop",
+            tagline: "Máxima atracción palatable incluso con comida alrededor",
+            badge: "bestseller",
+            badgeText: "MÁS COMPRADO"
+        },
+        { 
+            id: 14, 
+            name: "Pack 10 Tablas Adhesivas Ultra Pegajosas con Aroma a Queso", 
+            price: 6.50, 
+            category: "raticidas",
+            rating: 4.2,
+            distributor: "Remi Control", 
+            img: "https://images.unsplash.com/photo-1590682680695-43b964a3ae17?w=400&auto=format&fit=crop",
+            tagline: "Sin venenos. Adhesivos industrial ultra fuerte",
+            badge: "cheapest",
+            badgeText: "MÁS BARATO"
+        },
+        { 
+            id: 15, 
+            name: "Kit Profesional Control Definitivo de Roedores", 
+            price: 42.90, 
+            category: "raticidas",
+            rating: 5.0,
+            distributor: "Bayer Environmental", 
+            img: "https://images.unsplash.com/photo-1584467735815-f778f274e296?w=400&auto=format&fit=crop",
+            tagline: "La combinación definitiva utilizada por fumigadores expertos",
+            badge: "recommended",
+            badgeText: "RECOMENDADO"
+        },
+        { 
+            id: 5, 
+            name: "Gel Insecticida Profesional Cucarachas Maxforce", 
+            price: 19.95, 
+            category: "insecticidas",
+            rating: 4.6,
+            distributor: "Bayer Environmental", 
+            img: "https://images.unsplash.com/photo-1615485290382-441e4d049cb5?w=400&auto=format&fit=crop",
+            tagline: "Efecto dominó para la eliminación de nidos",
+            badge: null
+        },
+        { 
+            id: 6, 
+            name: "Trampa de Luz UV Mata Insectos Eco Kill 20W", 
+            price: 45.00, 
+            category: "equipos",
+            rating: 4.4,
+            distributor: "Pestline Pro", 
+            img: "https://images.unsplash.com/photo-1584467735815-f778f274e296?w=400&auto=format&fit=crop",
+            tagline: "Cero tóxicos para espacios de elaboración de alimentos",
+            badge: null
+        },
+        { 
+            id: 9, 
+            name: "Termidor SC Termiticida e Insecticida 250ml", 
+            price: 38.50, 
+            category: "insecticidas",
+            rating: 4.5,
+            distributor: "BASF Pest Solutions", 
+            img: "https://images.unsplash.com/photo-1587854692152-cbe660dbde88?w=400&auto=format&fit=crop",
+            tagline: "Fórmula profesional concentrada de barrera",
+            badge: null
+        },
+        { 
+            id: 10, 
+            name: "Advion Gel Hormigas Jeringa 30g", 
+            price: 22.00, 
+            category: "insecticidas",
+            rating: 4.7,
+            distributor: "Syngenta Crop Protection", 
+            img: "https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?w=400&auto=format&fit=crop",
+            tagline: "Transmisión biológica eficaz dentro de la colonia",
+            badge: null
+        },
+        { 
+            id: 11, 
+            name: "Insecticida Nebulizador Total Release Fumígero", 
+            price: 11.50, 
+            category: "insecticidas",
+            rating: 4.0,
+            distributor: "Remi Control", 
+            img: "https://images.unsplash.com/photo-1615485290382-441e4d049cb5?w=400&auto=format&fit=crop",
+            tagline: "Descarga total para desinfección de estancias cerradas",
+            badge: null
+        }
+    ];
+
+    const USERS_STORAGE_KEY = 'plagasOnlineUsers';
+    const CURRENT_SESSION_KEY = 'plagasOnlineCurrentUser';
+    const COMPANY_ORDERS_KEY = 'plagasOnlinePedidosEmpresa';
+    const COMPANY_DATA_EMAIL = 'esteba.daniel.barrios.romero@students.thepower.education';
+
+    let cart = [];
+    let currentUser = null;
+    let currentUserEmail = '';
+    let discountedProductIds = [];
+    let discountMultiplier = 1;
+    let activeCouponName = "";
+
+    function getCompanyOrders() {
+        try {
+            const storedOrders = localStorage.getItem(COMPANY_ORDERS_KEY);
+            return storedOrders ? JSON.parse(storedOrders) : [];
+        } catch (error) {
+            console.error('No se pudo leer el Excel de pedidos:', error);
+            return [];
+        }
+    }
+
+    function saveCompanyOrders(orders) {
+        try {
+            localStorage.setItem(COMPANY_ORDERS_KEY, JSON.stringify(orders));
+        } catch (error) {
+            console.error('No se pudo guardar el Excel de pedidos:', error);
+        }
+    }
+
+    function getUsers() {
+        try {
+            const storedUsers = localStorage.getItem(USERS_STORAGE_KEY);
+            return storedUsers ? JSON.parse(storedUsers) : [];
+        } catch (error) {
+            console.error('No se pudo leer la base de usuarios:', error);
+            return [];
+        }
+    }
+
+    function saveUsers(users) {
+        try {
+            localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
+        } catch (error) {
+            console.error('No se pudo guardar la base de usuarios:', error);
+        }
+    }
+
+    function normalizeEmail(email) {
+        return String(email || '').trim().toLowerCase();
+    }
+
+    function restoreSession() {
+        try {
+            const savedSession = localStorage.getItem(CURRENT_SESSION_KEY);
+            if (!savedSession) return;
+
+            const session = JSON.parse(savedSession);
+            if (session && session.name) {
+                currentUser = session.name;
+                currentUserEmail = normalizeEmail(session.email);
+                applyRandomDiscounts();
+                updateUserSessionUI();
+            }
+        } catch (error) {
+            console.error('No se pudo restaurar la sesión:', error);
+        }
+    }
+
+    function applyRandomDiscounts() {
+        discountedProductIds = [];
+        products.forEach(p => {
+            if (Math.random() < 0.45) {
+                discountedProductIds.push(p.id);
+            }
+        });
+    }
+
+    function getFinalPrice(product) {
+        if (currentUser && discountedProductIds.includes(product.id)) {
+            return {
+                price: product.price * 0.80,
+                isDiscounted: true,
+                oldPrice: product.price
+            };
+        }
+        return {
+            price: product.price,
+            isDiscounted: false,
+            oldPrice: null
+        };
+    }
+
+    function renderStars(rating) {
+        const full = Math.floor(rating);
+        let stars = '★'.repeat(full);
+        if (rating % 1 !== 0) stars += '½';
+        return stars;
+    }
+
+    function createCardHTML(p) {
+        const priceInfo = getFinalPrice(p);
+        
+        let badgesHTML = '<div class="badge-container">';
+        if (priceInfo.isDiscounted) {
+            badgesHTML += `<span class="badge badge-discount">-20% SOCIO</span>`;
+        }
+        if (p.badge) {
+            badgesHTML += `<span class="badge badge-${p.badge}">${p.badgeText}</span>`;
+        }
+        badgesHTML += '</div>';
+
+        const priceHTML = priceInfo.isDiscounted 
+            ? `<span class="old-price">${priceInfo.oldPrice.toFixed(2)}€</span><span class="price discounted">${priceInfo.price.toFixed(2)}€</span>`
+            : `<span class="price">${priceInfo.price.toFixed(2)}€</span>`;
+
+        return `
+            <div class="product-card">
+                ${badgesHTML}
+                <div>
+                    <div class="distributor-tag">${p.distributor}</div>
+                    <div class="img-container" onclick="openModal(${p.id})">
+                        <img src="${p.img}" alt="${p.name}">
+                    </div>
+                    <h4 onclick="openModal(${p.id})" style="cursor:pointer;">${p.name}</h4>
+                    <div class="rating-stars">${renderStars(p.rating)} (${p.rating})</div>
+                    <div class="tagline">${p.tagline || ''}</div>
+                </div>
+                <div>
+                    <div class="price-box">${priceHTML}</div>
+                    <div class="card-actions">
+                        <input type="number" id="qty-${p.id}" class="qty-input" value="1" min="1" max="99">
+                        <button class="btn-buy" onclick="addToCart(${p.id})">Añadir al Carrito</button>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    function renderProducts(itemsToRender = products) {
+        const allContainer = document.getElementById('all-products');
+        const featuredContainer = document.getElementById('featured-products');
+        
+        allContainer.innerHTML = '';
+        featuredContainer.innerHTML = '';
+
+        itemsToRender.forEach((p, index) => {
+            const cardHTML = createCardHTML(p);
+            allContainer.innerHTML += cardHTML;
+            if (index < 4) featuredContainer.innerHTML += cardHTML;
+        });
+
+        if (itemsToRender.length === 0) {
+            allContainer.innerHTML = `<p style="grid-column: 1/-1; text-align:center; padding: 20px;">No se encontraron artículos que coincidan con tu búsqueda.</p>`;
+        }
+    }
+
+    function filterProducts() {
+        const query = document.getElementById('search-input').value.toLowerCase().trim();
+        const category = document.getElementById('category-filter') ? document.getElementById('category-filter').value : 'all';
+        const sort = document.getElementById('sort-filter') ? document.getElementById('sort-filter').value : 'default';
+
+        let filtered = products.filter(p => {
+            const matchesQuery = p.name.toLowerCase().includes(query) || 
+                                 p.distributor.toLowerCase().includes(query) ||
+                                 (p.tagline && p.tagline.toLowerCase().includes(query));
+            const matchesCat = (category === 'all' || p.category === category);
+            return matchesQuery && matchesCat;
+        });
+
+        if (sort === 'price-asc') filtered.sort((a,b) => getFinalPrice(a).price - getFinalPrice(b).price);
+        if (sort === 'price-desc') filtered.sort((a,b) => getFinalPrice(b).price - getFinalPrice(a).price);
+        if (sort === 'rating') filtered.sort((a,b) => b.rating - a.rating);
+
+        if (query.length > 0) {
+            navigateTo('view-productos');
+            document.getElementById('catalog-title').innerText = `Resultados de búsqueda para: "${query}"`;
+        } else {
+            document.getElementById('catalog-title').innerText = 'Catálogo General de Productos';
+        }
+
+        renderProducts(filtered);
+    }
+
+    function navigateTo(viewId) {
+        document.querySelectorAll('.view-section').forEach(v => v.classList.remove('active'));
+        document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+
+        const target = document.getElementById(viewId);
+        if (target) target.classList.add('active');
+
+        if (viewId === 'view-carrito') renderCart();
+        if (viewId === 'view-checkout') renderCheckoutSummary();
+    }
+
+    function showToast(msg) {
+        const toast = document.getElementById('toast');
+        toast.innerText = msg;
+        toast.classList.add("show");
+        setTimeout(() => toast.classList.remove("show"), 2500);
+    }
+
+    function addToCart(productId) {
+        const product = products.find(p => p.id === productId);
+        const priceInfo = getFinalPrice(product);
+        const qtyInput = document.getElementById(`qty-${productId}`);
+        const qty = qtyInput ? parseInt(qtyInput.value) || 1 : 1;
+        
+        const existingItem = cart.find(item => item.id === productId);
+        if (existingItem) {
+            existingItem.quantity += qty;
+        } else {
+            cart.push({
+                cartItemId: Date.now() + Math.random(),
+                id: product.id,
+                name: product.name,
+                price: priceInfo.price,
+                distributor: product.distributor,
+                img: product.img,
+                quantity: qty
+            });
+        }
+        
+        updateCartBadge();
+        showToast(`Añadido (${qty}): ${product.name}`);
+    }
+
+    function updateCartQuantity(cartItemId, newQty) {
+        const item = cart.find(i => i.cartItemId === cartItemId);
+        if (item) {
+            item.quantity = parseInt(newQty) || 1;
+            renderCart();
+            updateCartBadge();
+        }
+    }
+
+    function removeFromCart(cartItemId) {
+        cart = cart.filter(item => item.cartItemId !== cartItemId);
+        updateCartBadge();
+        renderCart();
+        showToast("Producto eliminado de la cesta.");
+    }
+
+    function updateCartBadge() {
+        const countSpan = document.getElementById('cart-count');
+        const badge = document.getElementById('cart-badge');
+        
+        const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
+        countSpan.innerText = totalItems;
+        
+        badge.classList.remove('cart-pop');
+        void badge.offsetWidth;
+        badge.classList.add('cart-pop');
+    }
+
+    function renderCart() {
+        const cartContent = document.getElementById('cart-content');
+        
+        if (cart.length === 0) {
+            cartContent.innerHTML = `
+                <div class="empty-cart-box">
+                    <svg class="sad-cat-svg" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+                        <polygon points="45,80 20,25 75,50" fill="#78909c" />
+                        <polygon points="40,70 25,35 65,52" fill="#cfd8dc" />
+                        <polygon points="155,80 180,25 125,50" fill="#78909c" />
+                        <polygon points="160,70 175,35 135,52" fill="#cfd8dc" />
+                        <ellipse cx="100" cy="105" rx="68" ry="58" fill="#90a4ae" />
+                        <ellipse cx="75" cy="95" rx="9" ry="12" fill="#37474f" />
+                        <ellipse cx="125" cy="95" rx="9" ry="12" fill="#37474f" />
+                        <circle cx="72" cy="91" r="3" fill="#ffffff" />
+                        <circle cx="122" cy="91" r="3" fill="#ffffff" />
+                        <path d="M 75,108 C 73,118 68,124 75,128 C 81,124 77,118 75,108 Z" fill="#29b6f6" opacity="0.8" />
+                        <path d="M 125,108 C 123,118 118,124 125,128 C 131,124 127,118 125,108 Z" fill="#29b6f6" opacity="0.8" />
+                        <polygon points="100,108 94,115 106,115" fill="#f48fb1" />
+                        <path d="M 100,115 Q 92,128 85,122" stroke="#37474f" stroke-width="3" fill="none" stroke-linecap="round" />
+                        <path d="M 100,115 Q 108,128 115,122" stroke="#37474f" stroke-width="3" fill="none" stroke-linecap="round" />
+                        <line x1="45" y1="108" x2="15" y2="105" stroke="#37474f" stroke-width="2" stroke-linecap="round"/>
+                        <line x1="45" y1="115" x2="20" y2="120" stroke="#37474f" stroke-width="2" stroke-linecap="round"/>
+                        <line x1="155" y1="108" x2="185" y2="105" stroke="#37474f" stroke-width="2" stroke-linecap="round"/>
+                        <line x1="155" y1="115" x2="180" y2="120" stroke="#37474f" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                    <h3 style="color: #455a64; font-size: 1.4rem;">¡Miau... Tu cesta está completamente vacía!</h3>
+                    <p style="color: #78909c; max-width: 400px;">Parece que aún no has agregado productos para combatir las plagas. ¡Explora nuestro catálogo e intenta alegrarle el día al minino!</p>
+                    <button class="btn-buy" style="max-width: 240px; margin-top: 10px;" onclick="navigateTo('view-productos')">Ir al Catálogo de Productos</button>
+                </div>
+            `;
+            return;
+        }
+
+        let total = 0;
+        let rowsHTML = '';
+
+        cart.forEach(item => {
+            const itemTotal = item.price * item.quantity;
+            total += itemTotal;
+            rowsHTML += `
+                <tr>
+                    <td style="width: 80px;">
+                        <img src="${item.img}" alt="${item.name}" class="cart-item-img">
+                    </td>
+                    <td>
+                        <strong style="color: #222;">${item.name}</strong><br>
+                        <span style="font-size:0.8rem; color:#777;">Distribuidor: ${item.distributor}</span>
+                    </td>
+                    <td style="width: 80px;">
+                        <input type="number" value="${item.quantity}" min="1" class="qty-input" onchange="updateCartQuantity(${item.cartItemId}, this.value)">
+                    </td>
+                    <td style="font-weight: bold; color: var(--po-blue-header); font-size: 1.1rem; width: 110px;">
+                        ${itemTotal.toFixed(2)}€
+                    </td>
+                    <td style="width: 90px; text-align: center;">
+                        <button class="btn-remove" title="Eliminar este producto" onclick="removeFromCart(${item.cartItemId})">✕</button>
+                    </td>
+                </tr>
+            `;
+        });
+
+        cartContent.innerHTML = `
+            <table class="cart-table">
+                <thead>
+                    <tr>
+                        <th>Producto</th>
+                        <th>Descripción</th>
+                        <th>Cant.</th>
+                        <th>Precio</th>
+                        <th style="text-align:center;">Acción</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${rowsHTML}
+                </tbody>
+            </table>
+
+            <div style="display:flex; justify-content:space-between; align-items:center; background:#ffffff; padding:20px; border-radius:8px; box-shadow:var(--card-shadow); margin-top:20px; flex-wrap:wrap; gap:15px;">
+                <div>
+                    <span style="font-size:1rem; color:#666;">Subtotal de compra:</span>
+                    <h2 style="color:var(--po-orange-btn); font-size: 1.8rem;">${total.toFixed(2)}€</h2>
+                </div>
+                <div style="display:flex; gap:12px;">
+                    <button class="secondary-btn" style="padding:12px 20px;" onclick="navigateTo('view-productos')">← Continuar Comprando</button>
+                    <button class="btn-buy" style="padding:12px 24px; font-size:1rem; width:auto;" onclick="navigateTo('view-checkout')">Tramitar Pedido →</button>
+                </div>
+            </div>
+        `;
+    }
+
+    function renderCheckoutSummary() {
+        const summaryContainer = document.getElementById('checkout-summary-list');
+        let total = 0;
+        summaryContainer.innerHTML = '';
+        
+        cart.forEach(item => {
+            const itemTotal = item.price * item.quantity;
+            total += itemTotal;
+            summaryContainer.innerHTML += `
+                <div style="display:flex; justify-content:space-between; align-items:center; font-size:0.9rem; margin-bottom:8px;">
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <img src="${item.img}" style="width:35px; height:35px; object-fit:contain; border-radius:4px; border:1px solid #ddd;">
+                        <span style="max-width:180px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${item.name} (x${item.quantity})</span>
+                    </div>
+                    <strong>${itemTotal.toFixed(2)}€</strong>
+                </div>`;
+        });
+
+        total = total * discountMultiplier;
+
+        document.getElementById('checkout-total-price').innerText = `${total.toFixed(2)}€`;
+        
+        const tag = document.getElementById('coupon-applied-tag');
+        if (discountMultiplier < 1) {
+            tag.style.display = "block";
+            tag.innerText = `✓ Cupón ${activeCouponName} aplicado (-20%)`;
+        } else {
+            tag.style.display = "none";
+        }
+
+        if (currentUser) {
+            document.getElementById('chk-name').value = currentUser;
+        }
+    }
+
+    // LÓGICA DE APLICACIÓN DE CUPONES
+    function applyCoupon() {
+        const inputVal = document.getElementById('coupon-code').value.trim().toLowerCase();
+        
+        // Acepta "bienvenido!", "cupon2026!" o "plagas10"
+        if (inputVal === "bienvenido!" || inputVal === "cupon2026!" || inputVal === "plagas10") {
+            discountMultiplier = 0.80; // 20% de descuento
+            activeCouponName = inputVal.toUpperCase();
+            showToast(`¡Cupón "${activeCouponName}" activado! -20% aplicado.`);
+            renderCheckoutSummary();
+        } else if (inputVal === "") {
+            alert("Por favor introduce un código de cupón.");
+        } else {
+            alert("Cupón no válido. Prueba con 'bienvenido!' o 'cupon2026!'");
+        }
+    }
+
+    function togglePaymentInstructions() {
+        const method = document.getElementById('payment-method').value;
+        const box = document.getElementById('payment-details-box');
+        
+        if (method === 'card') {
+            box.innerHTML = `
+                <div style="background: linear-gradient(135deg, #0d2a4b, #1d4d7a); color: white; border-radius: 12px; padding: 16px; margin-bottom: 14px; box-shadow: 0 8px 20px rgba(0, 75, 135, 0.18);">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 10px;">
+                        <span style="font-size:0.8rem; letter-spacing:0.08em; text-transform:uppercase; opacity:0.9;">Pasarela segura</span>
+                        <span style="font-size:1.2rem;">💳</span>
+                    </div>
+                    <div style="font-size: 1.2rem; letter-spacing: 0.12em; font-weight: 700;">•••• •••• •••• ••••</div>
+                    <div style="display:flex; justify-content:space-between; margin-top: 12px; font-size: 0.75rem; opacity: 0.9;">
+                        <span>TITULAR</span>
+                        <span>CVV</span>
+                    </div>
+                </div>
+                <h4 style="margin-bottom: 10px; color: var(--po-blue-header);">Datos de la tarjeta</h4>
+                <div class="form-group">
+                    <label>Nombre del titular *</label>
+                    <input type="text" id="card-holder" required placeholder="Nombre como aparece en la tarjeta">
+                </div>
+                <div class="form-group">
+                    <label>Número de tarjeta *</label>
+                    <input type="text" id="card-number" required placeholder="1234 5678 9012 3456" maxlength="19" inputmode="numeric">
+                </div>
+                <div style="display: flex; gap: 10px;">
+                    <div class="form-group" style="flex: 1;">
+                        <label>Caducidad *</label>
+                        <input type="text" id="card-exp" required placeholder="MM/AA" maxlength="5" inputmode="numeric">
+                    </div>
+                    <div class="form-group" style="flex: 1;">
+                        <label>CVC / CVV *</label>
+                        <input type="text" id="card-cvc" required placeholder="123" maxlength="4" inputmode="numeric">
+                    </div>
+                </div>
+                <p style="font-size: 0.78rem; color: #666; line-height: 1.5; margin-top: 6px;">
+                    🔒 Pago protegido con cifrado SSL. <strong>Este entorno es de prueba</strong> y no realiza ningún cobro real.
+                </p>
+            `;
+            const cardNumberInput = document.getElementById('card-number');
+            const cardExpInput = document.getElementById('card-exp');
+            const cardCvcInput = document.getElementById('card-cvc');
+
+            if (cardNumberInput) {
+                cardNumberInput.addEventListener('input', function() {
+                    let value = this.value.replace(/\D/g, '').slice(0, 16);
+                    this.value = value.replace(/(.{4})/g, '$1 ').trim();
+                });
+            }
+
+            if (cardExpInput) {
+                cardExpInput.addEventListener('input', function() {
+                    let value = this.value.replace(/\D/g, '').slice(0, 4);
+                    if (value.length > 2) value = value.slice(0, 2) + '/' + value.slice(2);
+                    this.value = value;
+                });
+            }
+
+            if (cardCvcInput) {
+                cardCvcInput.addEventListener('input', function() {
+                    this.value = this.value.replace(/\D/g, '').slice(0, 4);
+                });
+            }
+        } else if (method === 'transfer') {
+            box.innerHTML = `
+                <h4 style="margin-bottom: 8px; color: var(--po-blue-header);">Datos bancarios del pagador:</h4>
+                <div class="form-group">
+                    <label>IBAN o Cuenta de Origen del Comprador *</label>
+                    <input type="text" id="transfer-iban" required placeholder="ESXX XXXX XXXX XXXX XXXX XXXX">
+                </div>
+                <hr style="margin: 10px 0;">
+                <strong>Instrucciones de Transferencia:</strong><br>
+                • Banco Destino: Santander<br>
+                • IBAN Destino: ES91 0049 1234 5678 9012 3456<br>
+                • Beneficiario: PlagasOnline S.L.<br>
+                <em>Debes incluir tu nombre y el código de tu pedido en el concepto.</em>
+            `;
+        } else if (method === 'bizum') {
+            box.innerHTML = `
+                <h4 style="margin-bottom: 8px; color: var(--po-blue-header);">Datos Bizum del Comprador:</h4>
+                <div class="form-group">
+                    <label>Teléfono móvil desde el que harás el Bizum *</label>
+                    <input type="tel" id="bizum-phone" required placeholder="Ej: 600 000 000">
+                </div>
+                <hr style="margin: 10px 0;">
+                <strong>Instrucciones Bizum:</strong><br>
+                • Teléfono de Pago Destino: +34 654 65 52 09<br>
+                • Concepto: Pedido PlagasOnline<br>
+                <em>Comprobaremos la entrada del dinero asociada a tu número de teléfono.</em>
+            `;
+        } else if (method === 'btc') {
+            box.innerHTML = `
+                <h4 style="margin-bottom: 8px; color: var(--po-blue-header);">Datos Bitcoin del Comprador:</h4>
+                <div class="form-group">
+                    <label>Dirección Wallet de Origen (opcional para verificación):</label>
+                    <input type="text" id="btc-wallet" placeholder="1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa">
+                </div>
+                <hr style="margin: 10px 0;">
+                <strong>Instrucciones de Pago Bitcoin:</strong><br>
+                • Wallet Destino: <code>1A1zP1eP5QGefi2DMPTfTL5SLmv7DivfNa</code><br>
+                <em>Por favor, transfiere el valor equivalente exacto a tu orden.</em>
+            `;
+        }
+    }
+
+    function validateCardPaymentData() {
+        const holder = document.getElementById('card-holder')?.value.trim();
+        const cardNumber = document.getElementById('card-number')?.value.replace(/\s+/g, '');
+        const exp = document.getElementById('card-exp')?.value.trim();
+        const cvc = document.getElementById('card-cvc')?.value.trim();
+
+        if (!holder) return 'Debes indicar el nombre del titular de la tarjeta.';
+        if (!/^\d{13,19}$/.test(cardNumber || '')) return 'El número de tarjeta no es válido.';
+        if (!/^(0[1-9]|1[0-2])\/[0-9]{2}$/.test(exp || '')) return 'La fecha de caducidad debe tener formato MM/AA.';
+        if (!/^\d{3,4}$/.test(cvc || '')) return 'El CVC/CVV no es válido.';
+
+        return '';
+    }
+
+    function processRealPayment() {
+        if (cart.length === 0) return alert("Tu carrito está vacío.");
+
+        const name = document.getElementById('chk-name').value;
+        const email = document.getElementById('chk-email').value.trim().toLowerCase();
+        const address = document.getElementById('chk-address').value;
+        const zip = document.getElementById('chk-zip').value;
+        const city = document.getElementById('chk-city').value;
+        const method = document.getElementById('payment-method').value;
+
+        let extraPaymentDetails = "";
+        if (method === 'card') {
+            const validationError = validateCardPaymentData();
+            if (validationError) {
+                alert(validationError);
+                return;
+            }
+
+            const cardHolder = document.getElementById('card-holder').value.trim();
+            const cardNumber = document.getElementById('card-number').value.replace(/\s+/g, '');
+            extraPaymentDetails = `Tarjeta Titular: ${cardHolder} (Nº terminación: ${cardNumber.slice(-4)})`;
+        } else if (method === 'transfer') {
+            const iban = document.getElementById('transfer-iban').value;
+            extraPaymentDetails = `Cuenta origen terminada en: ${iban.slice(-4)}`;
+        } else if (method === 'bizum') {
+            const phone = document.getElementById('bizum-phone').value;
+            extraPaymentDetails = `Teléfono Bizum pagador: ${phone}`;
+        } else if (method === 'btc') {
+            const wallet = document.getElementById('btc-wallet').value || "No especificada";
+            extraPaymentDetails = `Wallet Origen: ${wallet}`;
+        }
+        
+        const orderId = '#PO-' + Math.floor(100000 + Math.random() * 900000);
+
+        function resolveProductImageUrl(imageValue) {
+            const fallbackImage = 'https://images.unsplash.com/photo-1584467735815-f778f274e296?auto=format&fit=crop&w=300&q=80';
+            if (!imageValue) return fallbackImage;
+            if (/^https?:\/\//i.test(String(imageValue))) return String(imageValue);
+
+            // EmailJS cannot read files from the user's computer. Relative images
+            // only work after the site has been deployed on an HTTP(S) domain.
+            const pageOrigin = typeof window !== 'undefined' ? window.location.origin : '';
+            if (!/^https?:$/i.test(typeof window !== 'undefined' ? window.location.protocol : '') || pageOrigin === 'null') {
+                return fallbackImage;
+            }
+
+            const cleanImage = String(imageValue).replace(/^\/+/, '');
+            return `${pageOrigin.replace(/\/$/, '')}/${cleanImage}`;
+        }
+        
+        let total = 0;
+        let productListText = "";
+        let productListHtml = "";
+        cart.forEach(item => {
+            const itemTotal = item.price * item.quantity;
+            total += itemTotal;
+            const imageUrl = resolveProductImageUrl(item.img);
+
+            productListText += `- ${item.name} (x${item.quantity}) - ${item.price.toFixed(2)}€ c/u - Total: ${itemTotal.toFixed(2)}€\n`;
+            productListHtml += `
+                <tr>
+                    <td style="padding:10px 8px;border-bottom:1px solid #e0e0e0;">
+                        <div style="display:flex;align-items:center;gap:12px;">
+                            <img src="${imageUrl}" alt="${item.name}" style="width:52px;height:52px;object-fit:contain;border-radius:6px;border:1px solid #dfe8f1;background:#f8fafc;" />
+                            <div>
+                                <div style="font-weight:bold; color:#1f2937;">${item.name}</div>
+                                <div style="font-size:12px; color:#667085;">${item.quantity} x ${item.price.toFixed(2)}€</div>
+                            </div>
+                        </div>
+                    </td>
+                    <td style="padding:10px 8px;border-bottom:1px solid #e0e0e0;text-align:center;">${item.quantity}</td>
+                    <td style="padding:10px 8px;border-bottom:1px solid #e0e0e0;text-align:right; font-weight:bold; color:#004b87;">${item.price.toFixed(2)}€</td>
+                    <td style="padding:10px 8px;border-bottom:1px solid #e0e0e0;text-align:right; font-weight:bold; color:#e65100;">${itemTotal.toFixed(2)}€</td>
+                </tr>
+            `;
+        });
+
+        total = total * discountMultiplier;
+        const orderTotal = total.toFixed(2) + "€";
+        const productsTableHtml = `
+            <table style="width:100%;border-collapse:collapse;font-family:Arial,sans-serif;">
+                <thead>
+                    <tr>
+                        <th style="padding:10px 8px;background:#004b87;color:#fff;text-align:left;">Producto</th>
+                        <th style="padding:10px 8px;background:#004b87;color:#fff;">Cantidad</th>
+                        <th style="padding:10px 8px;background:#004b87;color:#fff;text-align:right;">Precio</th>
+                        <th style="padding:10px 8px;background:#004b87;color:#fff;text-align:right;">Total</th>
+                    </tr>
+                </thead>
+                <tbody>${productListHtml}</tbody>
+                <tfoot>
+                    <tr>
+                        <td colspan="3" style="padding:12px 8px;text-align:right;font-weight:bold;border-top:2px solid #004b87;">Total:</td>
+                        <td style="padding:12px 8px;text-align:right;font-weight:bold;color:#e65100;border-top:2px solid #004b87;">${orderTotal}</td>
+                    </tr>
+                </tfoot>
+            </table>
+        `;
+        const escapeEmailHtml = value => String(value || '').replace(/[&<>"']/g, character => ({
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#39;'
+        }[character]));
+        const paymentMethodHtml = `
+            <table role="presentation" style="width:100%;border-collapse:collapse;font-family:Arial,sans-serif;margin-top:18px;">
+                <tr>
+                    <td style="padding:16px 18px;background:#eef6ff;border:1px solid #cfe2f5;border-left:5px solid #004b87;border-radius:6px;">
+                        <div style="font-size:12px;text-transform:uppercase;letter-spacing:.5px;color:#667085;margin-bottom:5px;">Método de pago</div>
+                        <div style="font-size:16px;font-weight:bold;color:#004b87;">${escapeEmailHtml(method.toUpperCase())}</div>
+                        <div style="font-size:13px;color:#475467;margin-top:6px;">${escapeEmailHtml(extraPaymentDetails)}</div>
+                    </td>
+                </tr>
+            </table>
+        `;
+
+        const templateParams = {
+            to_name: name,
+            to_email: email,
+            order_id: orderId,
+            order_total: orderTotal,
+            products_list: productListText,
+            products_list_html: productsTableHtml,
+            payment_method_html: paymentMethodHtml,
+            company_name: "PlagasOnline.es",
+            shipping_name: name,
+            shipping_address: address,
+            shipping_zip: zip,
+            shipping_city: city,
+            payment_method: `${method.toUpperCase()} (${extraPaymentDetails})`
+        };
+
+        const orderData = {
+            orderId,
+            customerName: name,
+            customerEmail: email,
+            shippingAddress: address,
+            shippingZip: zip,
+            shippingCity: city,
+            paymentMethod: `${method.toUpperCase()} (${extraPaymentDetails})`,
+            total: orderTotal,
+            products: cart.map(item => ({
+                name: item.name,
+                quantity: item.quantity,
+                unitPrice: item.price.toFixed(2) + "€",
+                subtotal: (item.price * item.quantity).toFixed(2) + "€"
+            }))
+        };
+
+        const payBtn = document.getElementById('pay-button');
+        if (typeof emailjs === 'undefined') {
+            alert("No se pudo cargar EmailJS. Comprueba tu conexión a Internet y vuelve a abrir la página.");
+            return;
+        }
+
+        if (emailConfigIsMissing()) {
+            alert("EmailJS aún no está configurado. Sustituye publicKey, serviceId y templateId en EMAIL_CONFIG.");
+            return;
+        }
+
+        payBtn.innerText = "Procesando y enviando correo...";
+        payBtn.disabled = true;
+
+        emailjs.send(EMAIL_CONFIG.serviceId, EMAIL_CONFIG.templateId, templateParams)
+            .then(function(response) {
+                console.log('Correo enviado con éxito!', response.status, response.text);
+                finishCheckout(orderId, email, orderData);
+            }, function(error) {
+                console.error('Error al enviar el correo:', error);
+                payBtn.innerText = "Reintentar envío de confirmación";
+                payBtn.disabled = false;
+                const errorMessage = error && (error.text || error.message) ? (error.text || error.message) : "Error desconocido";
+                alert(`No se pudo enviar el correo: ${errorMessage}. Revisa el servicio y la plantilla de EmailJS.`);
+            });
+    }
+
+    function sendContactMessage(event) {
+        event.preventDefault();
+
+        if (typeof emailjs === 'undefined') {
+            alert("No se pudo cargar EmailJS. Comprueba tu conexión a Internet y vuelve a abrir la página.");
+            return;
+        }
+
+        if (emailConfigIsMissing()) {
+            alert("EmailJS aún no está configurado. Sustituye publicKey, serviceId y templateId en EMAIL_CONFIG.");
+            return;
+        }
+
+        const submitButton = document.getElementById('contact-submit');
+        const form = document.getElementById('contact-form');
+        const name = document.getElementById('contact-name').value.trim();
+        const email = document.getElementById('contact-email').value.trim().toLowerCase();
+        const phone = document.getElementById('contact-phone').value.trim();
+        const subject = document.getElementById('contact-type').value.trim();
+        const message = document.getElementById('contact-message').value.trim();
+
+        const templateParams = {
+            from_name: name,
+            reply_to: email,
+            phone: phone,
+            subject: subject,
+            message: message,
+            to_email: 'soporte@plagasonline.es'
+        };
+
+        submitButton.disabled = true;
+        submitButton.innerText = 'Enviando...';
+
+        emailjs.send(EMAIL_CONFIG.serviceId, EMAIL_CONFIG.templateId, templateParams)
+            .then(function() {
+                form.reset();
+                submitButton.innerText = 'Enviar mensaje';
+                submitButton.disabled = false;
+                showToast('Mensaje enviado correctamente.');
+            })
+            .catch(function(error) {
+                console.error('Error al enviar el mensaje:', error);
+                submitButton.innerText = 'Reintentar envío';
+                submitButton.disabled = false;
+                const errorMessage = error && (error.text || error.message) ? (error.text || error.message) : 'Error desconocido';
+                alert(`No se pudo enviar el mensaje: ${errorMessage}. Revisa el servicio y la plantilla de EmailJS.`);
+            });
+    }
+
+    async function appendOrderToGoogleSheet(orderData) {
+        if (!SHEETS_CONFIG.appScriptUrl || SHEETS_CONFIG.appScriptUrl.includes(AKfycbxvFsMklmW8ZHAbbvKNvLpX8GM70CE5elMt1VKGmghePtSKYSjBxse7KfTtxDCrgdA5)) {
+            console.warn('Falta URL del Apps Script de Google Sheets.');
+            return false;
+        }
+
+        try {
+            const response = await fetch(SHEETS_CONFIG.appScriptUrl, {
+                method: 'POST',
+                mode: 'cors',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    action: 'appendOrder',
+                    order: orderData
+                })
+            });
+
+            if (!response.ok) {
+                const text = await response.text();
+                throw new Error(text || 'Error al guardar en Google Sheets');
+            }
+
+            return true;
+        } catch (error) {
+            console.error('No se pudo guardar el pedido en Google Sheets:', error);
+            return false;
+        }
+    }
+
+    function finishCheckout(orderId, email, orderData) {
+        document.getElementById('order-id').innerText = orderId;
+        document.getElementById('confirmation-email').innerText = `Confirmación enviada a ${email}`;
+        window.lastOrderData = orderData;
+
+        appendOrderToGoogleSheet(orderData).then(success => {
+            if (success) {
+                console.log('Pedido guardado en Google Sheets.');
+            } else {
+                console.warn('Se guardó solo en memoria local del navegador.');
+            }
+        });
+
+        saveCompanyOrders([...getCompanyOrders(), {
+            'Número de pedido': orderData.orderId,
+            'Nombre del cliente': orderData.customerName,
+            'Email': orderData.customerEmail,
+            'Dirección': orderData.shippingAddress,
+            'Código postal': orderData.shippingZip,
+            'Ciudad': orderData.shippingCity,
+            'Método de pago': orderData.paymentMethod,
+            'Productos': orderData.products.map(product => `${product.name} x${product.quantity}`).join(' | '),
+            'Total del pedido': orderData.total,
+            'Fecha': new Date().toLocaleString('es-ES')
+        }]);
+
+        cart = [];
+        discountMultiplier = 1;
+        activeCouponName = "";
+        updateCartBadge();
+        
+        const payBtn = document.getElementById('pay-button');
+        payBtn.innerText = "Confirmar y Procesar Pedido";
+        payBtn.disabled = false;
+        
+        navigateTo('view-success');
+    }
+
+    function downloadCompanyOrdersExcel() {
+        if (normalizeEmail(currentUserEmail) !== COMPANY_DATA_EMAIL) {
+            alert(`Debes iniciar sesión con ${COMPANY_DATA_EMAIL} para descargar la base de datos.`);
+            navigateTo('view-login');
+            return;
+        }
+
+        if (!window.lastOrderData) {
+            alert('No hay ningún pedido confirmado para exportar.');
+            return;
+        }
+
+        if (typeof XLSX === 'undefined') {
+            alert('No se pudo cargar el exportador de Excel. Comprueba tu conexión a Internet.');
+            return;
+        }
+
+        const order = window.lastOrderData;
+        const currentOrders = getCompanyOrders();
+        const orderRow = {
+            'Número de pedido': order.orderId,
+            'Nombre del cliente': order.customerName,
+            'Email': order.customerEmail,
+            'Dirección': order.shippingAddress,
+            'Código postal': order.shippingZip,
+            'Ciudad': order.shippingCity,
+            'Método de pago': order.paymentMethod,
+            'Productos': order.products.map(product => `${product.name} x${product.quantity}`).join(' | '),
+            'Total del pedido': order.total,
+            'Fecha': new Date().toLocaleString('es-ES')
+        };
+
+        const allOrders = [...currentOrders, orderRow];
+        saveCompanyOrders(allOrders);
+
+        const worksheet = XLSX.utils.json_to_sheet(allOrders);
+        worksheet['!cols'] = [
+            { wch: 18 }, { wch: 24 }, { wch: 30 }, { wch: 34 },
+            { wch: 14 }, { wch: 18 }, { wch: 30 }, { wch: 60 },
+            { wch: 18 }, { wch: 20 }
+        ];
+
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, 'Pedidos');
+        XLSX.writeFile(workbook, 'Pedidos Empresa.xlsx');
+    }
+
+    function loginUser() {
+        const email = normalizeEmail(document.getElementById('login-user').value);
+        const password = document.getElementById('login-pass').value;
+
+        if (!email || !password) {
+            alert('Por favor, introduce tu correo y tu contraseña.');
+            return;
+        }
+
+        const users = getUsers();
+        const matchedUser = users.find(user =>
+            normalizeEmail(user.email) === email && String(user.password) === password
+        );
+
+        if (!matchedUser) {
+            alert('Correo o contraseña incorrectos. Comprueba tus datos o regístrate primero.');
+            return;
+        }
+
+        currentUser = matchedUser.name;
+        currentUserEmail = normalizeEmail(matchedUser.email);
+        applyRandomDiscounts();
+        updateUserSessionUI();
+        showToast(`¡Bienvenido, ${currentUser}! Descuentos aplicados.`);
+        navigateTo('view-inicio');
+    }
+
+    function registerUser() {
+        const name = document.getElementById('reg-name').value.trim();
+        const email = normalizeEmail(document.getElementById('reg-email').value);
+        const password = document.getElementById('reg-pass').value;
+
+        if (!name || !email || !password) {
+            alert('Por favor completa nombre, correo y contraseña.');
+            return;
+        }
+
+        if (email === COMPANY_DATA_EMAIL) {
+            alert('Esta cuenta está reservada para la administración y no puede registrarse desde la web.');
+            return;
+        }
+
+        const users = getUsers();
+
+        if (users.some(user => normalizeEmail(user.email) === email)) {
+            alert('Este correo ya está registrado. Prueba con otro o inicia sesión.');
+            return;
+        }
+
+        if (users.some(user => String(user.password) === password)) {
+            alert('Esta contraseña ya está en uso. Elige otra distinta para tu cuenta.');
+            return;
+        }
+
+        users.push({
+            name,
+            email,
+            password
+        });
+
+        saveUsers(users);
+        currentUser = name;
+        currentUserEmail = email;
+        applyRandomDiscounts();
+        updateUserSessionUI();
+        showToast('¡Cuenta creada! Se han activado los descuentos de socio.');
+        navigateTo('view-inicio');
+    }
+
+    function updateUserSessionUI() {
+        if (currentUser) {
+            try {
+                localStorage.setItem(CURRENT_SESSION_KEY, JSON.stringify({
+                    name: currentUser,
+                    email: currentUserEmail
+                }));
+            } catch (error) {
+                console.error('No se pudo guardar la sesión:', error);
+            }
+
+            document.getElementById('user-greeting').innerText = `Hola, ${currentUser}`;
+            document.getElementById('auth-btn').innerText = "Cerrar Sesión";
+            document.getElementById('login-promo-banner').style.display = "block";
+        } else {
+            try {
+                localStorage.removeItem(CURRENT_SESSION_KEY);
+            } catch (error) {
+                console.error('No se pudo borrar la sesión:', error);
+            }
+
+            document.getElementById('user-greeting').innerText = `Hola, Invitado`;
+            document.getElementById('auth-btn').innerText = "Iniciar Sesión";
+            document.getElementById('login-promo-banner').style.display = "none";
+            discountedProductIds = [];
+        }
+        const downloadButton = document.getElementById('company-orders-download');
+        if (downloadButton) {
+            downloadButton.style.display = normalizeEmail(currentUserEmail) === COMPANY_DATA_EMAIL ? 'inline-block' : 'none';
+        }
+        renderProducts();
+    }
+
+    function handleAuthAction() {
+        if (currentUser) {
+            currentUser = null;
+            currentUserEmail = '';
+            updateUserSessionUI();
+            showToast('Sesión cerrada.');
+        } else {
+            navigateTo('view-login');
+        }
+    }
+
+    function openModal(id) {
+        const p = products.find(prod => prod.id === id);
+        const priceInfo = getFinalPrice(p);
+        const modalContent = document.getElementById('modal-content');
+        
+        modalContent.innerHTML = `
+            <div style="text-align:center;">
+                <img src="${p.img}" style="max-height:200px; object-fit:contain; margin-bottom:15px;">
+                <h3>${p.name}</h3>
+                <p style="color:#666; font-size:0.9rem; margin:5px 0;">Distribuidor: ${p.distributor}</p>
+                <div class="rating-stars">${renderStars(p.rating)} (${p.rating})</div>
+                <p style="margin:12px 0;">${p.tagline}</p>
+                <h2 style="color:var(--po-blue-header); margin-bottom:15px;">${priceInfo.price.toFixed(2)}€</h2>
+                <button class="btn-buy" onclick="addToCart(${p.id}); closeModal();">Añadir al Carrito</button>
+            </div>
+        `;
+        document.getElementById('quick-modal').classList.add('show');
+    }
+
+    function closeModal() {
+        document.getElementById('quick-modal').classList.remove('show');
+    }
+
+    document.addEventListener("DOMContentLoaded", function() {
+        togglePaymentInstructions();
+        renderProducts();
+    });
+</script>
+
+</body>
+</html>
