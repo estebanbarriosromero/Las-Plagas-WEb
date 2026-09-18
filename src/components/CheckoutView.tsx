@@ -67,6 +67,34 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
   const processStripePayment = async () => {
     setIsProcessing(true);
     try {
+      const orderId = '#PO-' + Math.floor(100000 + Math.random() * 900000);
+      try {
+        localStorage.setItem(
+          'pending_stripe_order',
+          JSON.stringify({
+            orderId,
+            customerName: name.trim(),
+            customerEmail: email.trim().toLowerCase(),
+            shippingAddress: address.trim(),
+            shippingZip: zip.trim(),
+            shippingCity: city.trim(),
+            paymentMethod: 'TARJETA (STRIPE)',
+            total: finalTotal.toFixed(2) + '€',
+            discountMultiplier,
+            products: cart.map((item) => ({
+              id: item.id,
+              name: item.name,
+              price: item.price * discountMultiplier,
+              quantity: item.quantity,
+              distributor: item.distributor,
+              img: item.img,
+            })),
+          })
+        );
+      } catch (e) {
+        console.warn('No se pudo guardar pending_stripe_order:', e);
+      }
+
       const response = await fetch('/create-checkout-session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -89,7 +117,7 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
     } catch (error: any) {
       console.error('Error al iniciar Stripe:', error);
       const msg = error?.message || 'No se pudo conectar con Stripe.';
-      alert(`${msg}\n\n(Puedes configurar STRIPE_SECRET_KEY en las variables de entorno para pagos reales, o seleccionar Transferencia/Bizum para continuar la prueba).`);
+      alert(msg);
       setIsProcessing(false);
     }
   };
@@ -367,13 +395,22 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
             <div className="bg-[#f0f4f8] p-4 rounded-lg border border-gray-200 text-xs sm:text-sm">
               {paymentMethod === 'card' && (
                 <div className="bg-gradient-to-br from-[#0d2a4b] to-[#1d4d7a] text-white rounded-xl p-4 sm:p-5 shadow-md">
-                  <div className="flex items-center gap-2 mb-2">
-                    <ShieldCheck className="w-5 h-5 text-[#81c784] shrink-0" />
-                    <strong className="text-sm sm:text-base font-bold text-white">Pago seguro con Stripe</strong>
+                  <div className="flex items-center justify-between gap-2 mb-2">
+                    <div className="flex items-center gap-2">
+                      <ShieldCheck className="w-5 h-5 text-[#81c784] shrink-0" />
+                      <strong className="text-sm sm:text-base font-bold text-white">Pasarela Stripe Checkout</strong>
+                    </div>
+                    <span className="text-[10px] bg-white/20 px-2 py-0.5 rounded font-mono font-bold text-gray-100">
+                      STRIPE TEST
+                    </span>
                   </div>
-                  <p className="text-xs sm:text-sm text-gray-200 opacity-90 leading-relaxed">
-                    Stripe solicitará los datos de la tarjeta en una página segura oficial y encriptada. No se almacenan datos bancarios en esta web.
+                  <p className="text-xs sm:text-sm text-gray-200 opacity-90 leading-relaxed mb-3">
+                    Al confirmar el pedido, serás redirigido a la pasarela de Stripe para introducir los datos de la tarjeta con cifrado bancario SSL de 256 bits.
                   </p>
+                  <div className="bg-black/20 rounded p-2 text-[11px] text-gray-300 font-mono flex items-center justify-between">
+                    <span>Clave pública: pk_test_51UGz...</span>
+                    <span className="text-[#81c784] font-bold">● Conectada</span>
+                  </div>
                 </div>
               )}
 

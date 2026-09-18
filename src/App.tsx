@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Product, CartItem, User, ViewType, OrderData } from './types';
 import { INITIAL_PRODUCTS } from './data/products';
-import { initEmailJS } from './utils/email';
+import { initEmailJS, sendOrderConfirmationEmail } from './utils/email';
+import { appendOrderToGoogleSheet } from './utils/sheets';
+import { recordCompanyOrder } from './utils/excel';
 import { Navbar } from './components/Navbar';
 import { HomeView } from './components/HomeView';
 import { CatalogView } from './components/CatalogView';
@@ -48,23 +50,47 @@ export default function App() {
     try {
       const urlParams = new URLSearchParams(window.location.search);
       if (urlParams.get('payment') === 'success') {
-        const fakeOrderId = '#PO-' + Math.floor(100000 + Math.random() * 900000);
-        setLastOrderData({
-          orderId: fakeOrderId,
-          customerName: currentUser?.name || 'Cliente',
-          customerEmail: currentUser?.email || 'Confirmado por Stripe',
-          shippingAddress: 'Dirección confirmada en Stripe',
-          shippingZip: '',
-          shippingCity: '',
+        let restoredOrder: any = null;
+        try {
+          const raw = localStorage.getItem('pending_stripe_order');
+          if (raw) {
+            restoredOrder = JSON.parse(raw);
+            localStorage.removeItem('pending_stripe_order');
+          }
+        } catch (err) {
+          console.warn('Error leyendo pending_stripe_order:', err);
+        }
+
+        const finalOrder: OrderData = {
+          orderId: restoredOrder?.orderId || '#PO-' + Math.floor(100000 + Math.random() * 900000),
+          customerName: restoredOrder?.customerName || currentUser?.name || 'Cliente',
+          customerEmail: restoredOrder?.customerEmail || currentUser?.email || 'pago@stripe.com',
+          shippingAddress: restoredOrder?.shippingAddress || 'Dirección confirmada en Stripe',
+          shippingZip: restoredOrder?.shippingZip || '',
+          shippingCity: restoredOrder?.shippingCity || '',
           paymentMethod: 'TARJETA (STRIPE CHECKOUT)',
-          total: 'Pago procesado',
-          products: [],
-        });
+          total: restoredOrder?.total || 'Pago procesado',
+          products: restoredOrder?.products || [],
+        };
+
+        setLastOrderData(finalOrder);
         setCart([]);
         setCurrentView('view-success');
         showToast('¡Pago con Stripe completado con éxito!');
+
+        if (restoredOrder?.products && restoredOrder.products.length > 0) {
+          sendOrderConfirmationEmail(finalOrder).catch((err) =>
+            console.error('Error enviando email tras Stripe:', err)
+          );
+          appendOrderToGoogleSheet(finalOrder).catch((err) =>
+            console.error('Error guardando en Google Sheets tras Stripe:', err)
+          );
+          recordCompanyOrder(finalOrder);
+        }
+
         window.history.replaceState({}, document.title, window.location.pathname);
       } else if (urlParams.get('payment') === 'cancel') {
+        localStorage.removeItem('pending_stripe_order');
         showToast('Proceso de pago en Stripe cancelado.');
         window.history.replaceState({}, document.title, window.location.pathname);
       }

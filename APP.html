@@ -25,7 +25,8 @@
         const STRIPE_CONFIG = {
             checkoutEndpoint: (typeof window !== "undefined" && window.location.origin && !window.location.origin.includes("null"))
                 ? window.location.origin + "/create-checkout-session"
-                : "http://localhost:3000/create-checkout-session"
+                : "http://localhost:3000/create-checkout-session",
+            publishableKey: "pk_test_51UGzSd8ZgoKlpK4T0pCuz0BIHb7Bq3DhkWiLelZlxj21tDLRHD1jNgRjjXGm5sJ3x1gNSchOV6ZX1hwZ2h95EiUB00CmYVSuTQ"
         };
 
         if (typeof emailjs !== "undefined" && !emailConfigIsMissing()) {
@@ -1750,16 +1751,55 @@
     async function processStripePayment() {
         if (cart.length === 0) return alert('Tu carrito está vacío.');
 
+        const name = document.getElementById('chk-name').value.trim();
         const email = document.getElementById('chk-email').value.trim().toLowerCase();
+        const address = document.getElementById('chk-address').value.trim();
+        const zip = document.getElementById('chk-zip').value.trim();
+        const city = document.getElementById('chk-city').value.trim();
+
+        if (!name || !email || !address || !zip || !city) {
+            return alert('Por favor completa todos los campos de envío obligatorios.');
+        }
+
         const payBtn = document.getElementById('pay-button');
         payBtn.disabled = true;
         payBtn.innerText = 'Redirigiendo a Stripe...';
 
         try {
+            const orderId = '#PO-' + Math.floor(100000 + Math.random() * 900000);
+            let subtotal = 0;
+            cart.forEach(item => { subtotal += item.price * item.quantity; });
+            const finalTotal = (subtotal * discountMultiplier).toFixed(2) + '€';
+
+            try {
+                localStorage.setItem('pending_stripe_order', JSON.stringify({
+                    orderId: orderId,
+                    name: name,
+                    email: email,
+                    address: address,
+                    zip: zip,
+                    city: city,
+                    paymentMethod: 'TARJETA (STRIPE)',
+                    orderTotal: finalTotal,
+                    cartSnapshot: JSON.parse(JSON.stringify(cart)),
+                    discountMultiplier: discountMultiplier
+                }));
+            } catch (e) {
+                console.warn('No se pudo guardar pending_stripe_order:', e);
+            }
+
             const response = await fetch(STRIPE_CONFIG.checkoutEndpoint, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, cart })
+                body: JSON.stringify({
+                    email: email,
+                    cart: cart.map(item => ({
+                        name: item.name,
+                        price: item.price * discountMultiplier,
+                        quantity: item.quantity,
+                        distributor: item.distributor
+                    }))
+                })
             });
             const result = await response.json();
             if (!response.ok || !result.url) {
@@ -2244,6 +2284,61 @@
         restoreSession();
         updateUserSessionUI();
         renderProducts();
+
+        // Check Stripe redirect URL params
+        try {
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('payment') === 'success') {
+                let pendingOrder = null;
+                try {
+                    const raw = localStorage.getItem('pending_stripe_order');
+                    if (raw) {
+                        pendingOrder = JSON.parse(raw);
+                        localStorage.removeItem('pending_stripe_order');
+                    }
+                } catch(e) {
+                    console.warn(e);
+                }
+
+                if (pendingOrder) {
+                    const orderId = pendingOrder.orderId || ('#PO-' + Math.floor(100000 + Math.random() * 900000));
+                    const email = pendingOrder.email;
+                    
+                    const orderData = {
+                        orderId: orderId,
+                        date: new Date().toLocaleString('es-ES'),
+                        name: pendingOrder.name,
+                        email: email,
+                        address: pendingOrder.address,
+                        zip: pendingOrder.zip,
+                        city: pendingOrder.city,
+                        paymentMethod: 'TARJETA (STRIPE)',
+                        total: pendingOrder.orderTotal,
+                        products: pendingOrder.cartSnapshot
+                    };
+
+                    cart = [];
+                    renderCart();
+                    finishCheckout(orderId, email, orderData);
+                    showToast('¡Pago con Stripe completado con éxito!');
+                } else {
+                    navigateTo('view-inicio');
+                    showToast('Pago confirmado con Stripe.');
+                }
+
+                if (window.history && window.history.replaceState) {
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                }
+            } else if (urlParams.get('payment') === 'cancel') {
+                localStorage.removeItem('pending_stripe_order');
+                showToast('Proceso de pago en Stripe cancelado.');
+                if (window.history && window.history.replaceState) {
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                }
+            }
+        } catch(e) {
+            console.error('Error comprobando retorno de Stripe:', e);
+        }
     });
 </script>
 

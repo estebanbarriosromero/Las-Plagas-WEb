@@ -42,10 +42,14 @@ export interface User {
 }
 
 export interface OrderProductDetail {
+  id?: number;
   name: string;
   quantity: number;
-  unitPrice: string;
-  subtotal: string;
+  unitPrice?: string;
+  subtotal?: string;
+  price?: number;
+  img?: string;
+  distributor?: string;
 }
 
 export interface OrderData {
