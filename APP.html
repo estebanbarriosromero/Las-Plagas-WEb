@@ -19,7 +19,13 @@
         };
 
         const SHEETS_CONFIG = {
-            appScriptUrl: "https://script.google.com/macros/s/TU_WEB_APP_ID/exec"
+            appScriptUrl: "https://script.google.com/macros/s/AKfycbzcneSAyEBoDyv8Tk0dZIxYj3KIzH2lG2VTpypUz-LzsDNT8vPmtWHO5chdToubl11C/exec"
+        };
+
+        const STRIPE_CONFIG = {
+            checkoutEndpoint: (typeof window !== "undefined" && window.location.origin && !window.location.origin.includes("null"))
+                ? window.location.origin + "/create-checkout-session"
+                : "http://localhost:3000/create-checkout-session"
         };
 
         if (typeof emailjs !== "undefined" && !emailConfigIsMissing()) {
@@ -1028,6 +1034,8 @@
                                 <p>soporte@plagasonline.es</p>
                             </div>
                         </div>
+
+                        <button id="contact-company-orders-download" class="secondary-btn" style="display:none; width:100%; margin-top:4px;" onclick="downloadCompanyOrdersExcel()">Descargar base de datos</button>
                     </div>
 
                     <div class="contact-hours">
@@ -1132,7 +1140,6 @@
                 <p style="margin-bottom: 15px;">Gracias por tu compra en <strong>PlagasOnline.es</strong>. Hemos recibido tu pago y tu pedido se encuentra en preparación.</p>
                 <p><strong>Número de Pedido:</strong> <span id="order-id" style="color: var(--po-orange-btn); font-weight: bold;">#PO-89412</span></p>
                 <p id="confirmation-email" style="margin-top: 8px;"></p>
-                <button id="company-orders-download" class="secondary-btn" style="margin-top: 18px;" onclick="downloadCompanyOrdersExcel()">Descargar Pedidos Empresa</button>
                 <button class="btn-buy" style="max-width: 220px; margin-top: 25px;" onclick="navigateTo('view-inicio')">Volver a la Tienda</button>
             </div>
         </div>
@@ -1284,7 +1291,8 @@
     const USERS_STORAGE_KEY = 'plagasOnlineUsers';
     const CURRENT_SESSION_KEY = 'plagasOnlineCurrentUser';
     const COMPANY_ORDERS_KEY = 'plagasOnlinePedidosEmpresa';
-    const COMPANY_DATA_EMAIL = 'esteba.daniel.barrios.romero@students.thepower.education';
+    const COMPANY_DATA_EMAIL = 'esteban.daniel.barrios.romero@students.thepower.education';
+    const COMPANY_DATA_PASSWORD = 'Fortnite08';
 
     let cart = [];
     let currentUser = null;
@@ -1340,8 +1348,15 @@
 
             const session = JSON.parse(savedSession);
             if (session && session.name) {
+                const savedUser = getUsers().find(user => user.name === session.name);
+                const sessionEmail = normalizeEmail(session.email || savedUser?.email);
+                if (sessionEmail === COMPANY_DATA_EMAIL) {
+                    localStorage.removeItem(CURRENT_SESSION_KEY);
+                    return;
+                }
+
                 currentUser = session.name;
-                currentUserEmail = normalizeEmail(session.email);
+                currentUserEmail = sessionEmail;
                 applyRandomDiscounts();
                 updateUserSessionUI();
             }
@@ -1685,64 +1700,11 @@
         
         if (method === 'card') {
             box.innerHTML = `
-                <div style="background: linear-gradient(135deg, #0d2a4b, #1d4d7a); color: white; border-radius: 12px; padding: 16px; margin-bottom: 14px; box-shadow: 0 8px 20px rgba(0, 75, 135, 0.18);">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 10px;">
-                        <span style="font-size:0.8rem; letter-spacing:0.08em; text-transform:uppercase; opacity:0.9;">Pasarela segura</span>
-                        <span style="font-size:1.2rem;">💳</span>
-                    </div>
-                    <div style="font-size: 1.2rem; letter-spacing: 0.12em; font-weight: 700;">•••• •••• •••• ••••</div>
-                    <div style="display:flex; justify-content:space-between; margin-top: 12px; font-size: 0.75rem; opacity: 0.9;">
-                        <span>TITULAR</span>
-                        <span>CVV</span>
-                    </div>
+                <div style="background: linear-gradient(135deg, #0d2a4b, #1d4d7a); color: white; border-radius: 12px; padding: 18px; box-shadow: 0 8px 20px rgba(0, 75, 135, 0.18);">
+                    <strong style="display:block; margin-bottom:8px;">Pago seguro con Stripe</strong>
+                    <span style="font-size:0.88rem; opacity:0.9;">Stripe solicitará los datos de la tarjeta en una página segura. No se almacenan en esta web.</span>
                 </div>
-                <h4 style="margin-bottom: 10px; color: var(--po-blue-header);">Datos de la tarjeta</h4>
-                <div class="form-group">
-                    <label>Nombre del titular *</label>
-                    <input type="text" id="card-holder" required placeholder="Nombre como aparece en la tarjeta">
-                </div>
-                <div class="form-group">
-                    <label>Número de tarjeta *</label>
-                    <input type="text" id="card-number" required placeholder="1234 5678 9012 3456" maxlength="19" inputmode="numeric">
-                </div>
-                <div style="display: flex; gap: 10px;">
-                    <div class="form-group" style="flex: 1;">
-                        <label>Caducidad *</label>
-                        <input type="text" id="card-exp" required placeholder="MM/AA" maxlength="5" inputmode="numeric">
-                    </div>
-                    <div class="form-group" style="flex: 1;">
-                        <label>CVC / CVV *</label>
-                        <input type="text" id="card-cvc" required placeholder="123" maxlength="4" inputmode="numeric">
-                    </div>
-                </div>
-                <p style="font-size: 0.78rem; color: #666; line-height: 1.5; margin-top: 6px;">
-                    🔒 Pago protegido con cifrado SSL. <strong>Este entorno es de prueba</strong> y no realiza ningún cobro real.
-                </p>
             `;
-            const cardNumberInput = document.getElementById('card-number');
-            const cardExpInput = document.getElementById('card-exp');
-            const cardCvcInput = document.getElementById('card-cvc');
-
-            if (cardNumberInput) {
-                cardNumberInput.addEventListener('input', function() {
-                    let value = this.value.replace(/\D/g, '').slice(0, 16);
-                    this.value = value.replace(/(.{4})/g, '$1 ').trim();
-                });
-            }
-
-            if (cardExpInput) {
-                cardExpInput.addEventListener('input', function() {
-                    let value = this.value.replace(/\D/g, '').slice(0, 4);
-                    if (value.length > 2) value = value.slice(0, 2) + '/' + value.slice(2);
-                    this.value = value;
-                });
-            }
-
-            if (cardCvcInput) {
-                cardCvcInput.addEventListener('input', function() {
-                    this.value = this.value.replace(/\D/g, '').slice(0, 4);
-                });
-            }
         } else if (method === 'transfer') {
             box.innerHTML = `
                 <h4 style="margin-bottom: 8px; color: var(--po-blue-header);">Datos bancarios del pagador:</h4>
@@ -1785,18 +1747,31 @@
         }
     }
 
-    function validateCardPaymentData() {
-        const holder = document.getElementById('card-holder')?.value.trim();
-        const cardNumber = document.getElementById('card-number')?.value.replace(/\s+/g, '');
-        const exp = document.getElementById('card-exp')?.value.trim();
-        const cvc = document.getElementById('card-cvc')?.value.trim();
+    async function processStripePayment() {
+        if (cart.length === 0) return alert('Tu carrito está vacío.');
 
-        if (!holder) return 'Debes indicar el nombre del titular de la tarjeta.';
-        if (!/^\d{13,19}$/.test(cardNumber || '')) return 'El número de tarjeta no es válido.';
-        if (!/^(0[1-9]|1[0-2])\/[0-9]{2}$/.test(exp || '')) return 'La fecha de caducidad debe tener formato MM/AA.';
-        if (!/^\d{3,4}$/.test(cvc || '')) return 'El CVC/CVV no es válido.';
+        const email = document.getElementById('chk-email').value.trim().toLowerCase();
+        const payBtn = document.getElementById('pay-button');
+        payBtn.disabled = true;
+        payBtn.innerText = 'Redirigiendo a Stripe...';
 
-        return '';
+        try {
+            const response = await fetch(STRIPE_CONFIG.checkoutEndpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, cart })
+            });
+            const result = await response.json();
+            if (!response.ok || !result.url) {
+                throw new Error(result.error || 'No se pudo iniciar el pago.');
+            }
+            window.location.href = result.url;
+        } catch (error) {
+            console.error('Error al iniciar Stripe:', error);
+            alert(error.message);
+            payBtn.disabled = false;
+            payBtn.innerText = 'Confirmar y Procesar Pedido';
+        }
     }
 
     function processRealPayment() {
@@ -1809,18 +1784,13 @@
         const city = document.getElementById('chk-city').value;
         const method = document.getElementById('payment-method').value;
 
-        let extraPaymentDetails = "";
         if (method === 'card') {
-            const validationError = validateCardPaymentData();
-            if (validationError) {
-                alert(validationError);
-                return;
-            }
+            processStripePayment();
+            return;
+        }
 
-            const cardHolder = document.getElementById('card-holder').value.trim();
-            const cardNumber = document.getElementById('card-number').value.replace(/\s+/g, '');
-            extraPaymentDetails = `Tarjeta Titular: ${cardHolder} (Nº terminación: ${cardNumber.slice(-4)})`;
-        } else if (method === 'transfer') {
+        let extraPaymentDetails = "";
+        if (method === 'transfer') {
             const iban = document.getElementById('transfer-iban').value;
             extraPaymentDetails = `Cuenta origen terminada en: ${iban.slice(-4)}`;
         } else if (method === 'bizum') {
@@ -2026,7 +1996,7 @@
     }
 
     async function appendOrderToGoogleSheet(orderData) {
-        if (!SHEETS_CONFIG.appScriptUrl || SHEETS_CONFIG.appScriptUrl.includes(AKfycbxvFsMklmW8ZHAbbvKNvLpX8GM70CE5elMt1VKGmghePtSKYSjBxse7KfTtxDCrgdA5)) {
+        if (!SHEETS_CONFIG.appScriptUrl || SHEETS_CONFIG.appScriptUrl.includes('TU_WEB_APP_ID')) {
             console.warn('Falta URL del Apps Script de Google Sheets.');
             return false;
         }
@@ -2036,7 +2006,7 @@
                 method: 'POST',
                 mode: 'cors',
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'text/plain;charset=utf-8'
                 },
                 body: JSON.stringify({
                     action: 'appendOrder',
@@ -2047,6 +2017,11 @@
             if (!response.ok) {
                 const text = await response.text();
                 throw new Error(text || 'Error al guardar en Google Sheets');
+            }
+
+            const result = await response.json();
+            if (!result.ok) {
+                throw new Error(result.error || 'Google Sheets rechazó el pedido');
             }
 
             return true;
@@ -2065,7 +2040,8 @@
             if (success) {
                 console.log('Pedido guardado en Google Sheets.');
             } else {
-                console.warn('Se guardó solo en memoria local del navegador.');
+                console.warn('Se guardó solo en memoria local del navegador. Revisa la consola y los permisos del Web App.');
+                showToast('Pedido guardado localmente; no llegó a Google Sheets.');
             }
         });
 
@@ -2101,8 +2077,9 @@
             return;
         }
 
-        if (!window.lastOrderData) {
-            alert('No hay ningún pedido confirmado para exportar.');
+        const allOrders = getCompanyOrders();
+        if (allOrders.length === 0) {
+            alert('No hay pedidos guardados para exportar.');
             return;
         }
 
@@ -2110,24 +2087,6 @@
             alert('No se pudo cargar el exportador de Excel. Comprueba tu conexión a Internet.');
             return;
         }
-
-        const order = window.lastOrderData;
-        const currentOrders = getCompanyOrders();
-        const orderRow = {
-            'Número de pedido': order.orderId,
-            'Nombre del cliente': order.customerName,
-            'Email': order.customerEmail,
-            'Dirección': order.shippingAddress,
-            'Código postal': order.shippingZip,
-            'Ciudad': order.shippingCity,
-            'Método de pago': order.paymentMethod,
-            'Productos': order.products.map(product => `${product.name} x${product.quantity}`).join(' | '),
-            'Total del pedido': order.total,
-            'Fecha': new Date().toLocaleString('es-ES')
-        };
-
-        const allOrders = [...currentOrders, orderRow];
-        saveCompanyOrders(allOrders);
 
         const worksheet = XLSX.utils.json_to_sheet(allOrders);
         worksheet['!cols'] = [
@@ -2151,9 +2110,12 @@
         }
 
         const users = getUsers();
-        const matchedUser = users.find(user =>
-            normalizeEmail(user.email) === email && String(user.password) === password
-        );
+        const isCompanyAccount = email === COMPANY_DATA_EMAIL && password === COMPANY_DATA_PASSWORD;
+        const matchedUser = isCompanyAccount
+            ? { name: 'Cuenta técnica', email: COMPANY_DATA_EMAIL }
+            : users.find(user =>
+                normalizeEmail(user.email) === email && String(user.password) === password
+            );
 
         if (!matchedUser) {
             alert('Correo o contraseña incorrectos. Comprueba tus datos o regístrate primero.');
@@ -2236,7 +2198,7 @@
             document.getElementById('login-promo-banner').style.display = "none";
             discountedProductIds = [];
         }
-        const downloadButton = document.getElementById('company-orders-download');
+        const downloadButton = document.getElementById('contact-company-orders-download');
         if (downloadButton) {
             downloadButton.style.display = normalizeEmail(currentUserEmail) === COMPANY_DATA_EMAIL ? 'inline-block' : 'none';
         }
@@ -2279,6 +2241,8 @@
 
     document.addEventListener("DOMContentLoaded", function() {
         togglePaymentInstructions();
+        restoreSession();
+        updateUserSessionUI();
         renderProducts();
     });
 </script>

@@ -3,7 +3,7 @@ import { CartItem, PaymentMethodType, OrderData, User } from '../types';
 import { sendOrderConfirmationEmail, resolveProductImageUrl, escapeEmailHtml } from '../utils/email';
 import { exportOrderToExcel, recordCompanyOrder } from '../utils/excel';
 import { appendOrderToGoogleSheet } from '../utils/sheets';
-import { ShieldCheck, CreditCard, Building2, Smartphone, Bitcoin, Tag } from 'lucide-react';
+import { ShieldCheck, Building2, Smartphone, Bitcoin, Tag } from 'lucide-react';
 
 interface CheckoutViewProps {
   cart: CartItem[];
@@ -24,12 +24,6 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
   const [zip, setZip] = useState('');
   const [city, setCity] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethodType>('card');
-
-  // Card fields
-  const [cardHolder, setCardHolder] = useState('');
-  const [cardNumber, setCardNumber] = useState('');
-  const [cardExp, setCardExp] = useState('');
-  const [cardCvc, setCardCvc] = useState('');
 
   // Transfer fields
   const [transferIban, setTransferIban] = useState('');
@@ -56,25 +50,6 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
   const rawTotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
   const finalTotal = rawTotal * discountMultiplier;
 
-  const handleCardNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const raw = e.target.value.replace(/\D/g, '').slice(0, 16);
-    const formatted = raw.replace(/(.{4})/g, '$1 ').trim();
-    setCardNumber(formatted);
-  };
-
-  const handleCardExpChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    let raw = e.target.value.replace(/\D/g, '').slice(0, 4);
-    if (raw.length > 2) {
-      raw = raw.slice(0, 2) + '/' + raw.slice(2);
-    }
-    setCardExp(raw);
-  };
-
-  const handleCardCvcChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const raw = e.target.value.replace(/\D/g, '').slice(0, 4);
-    setCardCvc(raw);
-  };
-
   const handleApplyCoupon = (e: React.FormEvent) => {
     e.preventDefault();
     const val = couponCode.trim().toLowerCase();
@@ -89,18 +64,34 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
     }
   };
 
-  const validateCardPaymentData = (): string => {
-    const holder = cardHolder.trim();
-    const cleanNumber = cardNumber.replace(/\s+/g, '');
-    const cleanExp = cardExp.trim();
-    const cleanCvc = cardCvc.trim();
+  const processStripePayment = async () => {
+    setIsProcessing(true);
+    try {
+      const response = await fetch('/create-checkout-session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: email.trim().toLowerCase(),
+          cart: cart.map((item) => ({
+            name: item.name,
+            price: item.price * discountMultiplier,
+            quantity: item.quantity,
+            distributor: item.distributor,
+          })),
+        }),
+      });
 
-    if (!holder) return 'Debes indicar el nombre del titular de la tarjeta.';
-    if (!/^\d{13,19}$/.test(cleanNumber)) return 'El número de tarjeta no es válido.';
-    if (!/^(0[1-9]|1[0-2])\/[0-9]{2}$/.test(cleanExp)) return 'La fecha de caducidad debe tener formato MM/AA.';
-    if (!/^\d{3,4}$/.test(cleanCvc)) return 'El CVC/CVV no es válido.';
-
-    return '';
+      const result = await response.json();
+      if (!response.ok || !result.url) {
+        throw new Error(result.error || 'No se pudo iniciar el pago.');
+      }
+      window.location.href = result.url;
+    } catch (error: any) {
+      console.error('Error al iniciar Stripe:', error);
+      const msg = error?.message || 'No se pudo conectar con Stripe.';
+      alert(`${msg}\n\n(Puedes configurar STRIPE_SECRET_KEY en las variables de entorno para pagos reales, o seleccionar Transferencia/Bizum para continuar la prueba).`);
+      setIsProcessing(false);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -116,16 +107,13 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
       return;
     }
 
-    let extraPaymentDetails = '';
     if (paymentMethod === 'card') {
-      const errorMsg = validateCardPaymentData();
-      if (errorMsg) {
-        alert(errorMsg);
-        return;
-      }
-      const cleanNumber = cardNumber.replace(/\s+/g, '');
-      extraPaymentDetails = `Tarjeta Titular: ${cardHolder.trim()} (Nº terminación: ${cleanNumber.slice(-4)})`;
-    } else if (paymentMethod === 'transfer') {
+      await processStripePayment();
+      return;
+    }
+
+    let extraPaymentDetails = '';
+    if (paymentMethod === 'transfer') {
       if (!transferIban.trim()) {
         alert('Por favor introduce tu IBAN o cuenta de origen.');
         return;
@@ -378,88 +366,13 @@ export const CheckoutView: React.FC<CheckoutViewProps> = ({
             {/* Dynamic payment details box */}
             <div className="bg-[#f0f4f8] p-4 rounded-lg border border-gray-200 text-xs sm:text-sm">
               {paymentMethod === 'card' && (
-                <div className="space-y-3">
-                  <div className="bg-gradient-to-br from-[#0d2a4b] to-[#1d4d7a] text-white rounded-xl p-4 shadow-md">
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="text-[10px] tracking-wider uppercase opacity-90">Pasarela segura</span>
-                      <CreditCard className="w-5 h-5 text-gray-300" />
-                    </div>
-                    <div className="text-base sm:text-lg tracking-widest font-mono font-bold">
-                      {cardNumber || '•••• •••• •••• ••••'}
-                    </div>
-                    <div className="flex justify-between mt-3 text-[10px] opacity-90">
-                      <span>TITULAR: {cardHolder.toUpperCase() || 'NOMBRE'}</span>
-                      <span>EXP: {cardExp || 'MM/AA'}</span>
-                    </div>
+                <div className="bg-gradient-to-br from-[#0d2a4b] to-[#1d4d7a] text-white rounded-xl p-4 sm:p-5 shadow-md">
+                  <div className="flex items-center gap-2 mb-2">
+                    <ShieldCheck className="w-5 h-5 text-[#81c784] shrink-0" />
+                    <strong className="text-sm sm:text-base font-bold text-white">Pago seguro con Stripe</strong>
                   </div>
-
-                  <h4 className="font-bold text-[#004b87]">Datos de la tarjeta</h4>
-
-                  <div>
-                    <label className="block font-bold text-gray-700 text-xs mb-1">
-                      Nombre del titular *
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={cardHolder}
-                      onChange={(e) => setCardHolder(e.target.value)}
-                      placeholder="Nombre como aparece en la tarjeta"
-                      className="w-full p-2 bg-white border border-gray-300 rounded focus:border-[#004b87] focus:outline-none text-xs"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block font-bold text-gray-700 text-xs mb-1">
-                      Número de tarjeta *
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      value={cardNumber}
-                      onChange={handleCardNumberChange}
-                      placeholder="1234 5678 9012 3456"
-                      maxLength={19}
-                      inputMode="numeric"
-                      className="w-full p-2 bg-white border border-gray-300 rounded font-mono focus:border-[#004b87] focus:outline-none text-xs"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block font-bold text-gray-700 text-xs mb-1">
-                        Caducidad *
-                      </label>
-                      <input
-                        type="text"
-                        required
-                        value={cardExp}
-                        onChange={handleCardExpChange}
-                        placeholder="MM/AA"
-                        maxLength={5}
-                        inputMode="numeric"
-                        className="w-full p-2 bg-white border border-gray-300 rounded font-mono focus:border-[#004b87] focus:outline-none text-xs text-center"
-                      />
-                    </div>
-                    <div>
-                      <label className="block font-bold text-gray-700 text-xs mb-1">
-                        CVC / CVV *
-                      </label>
-                      <input
-                        type="password"
-                        required
-                        value={cardCvc}
-                        onChange={handleCardCvcChange}
-                        placeholder="123"
-                        maxLength={4}
-                        inputMode="numeric"
-                        className="w-full p-2 bg-white border border-gray-300 rounded font-mono focus:border-[#004b87] focus:outline-none text-xs text-center"
-                      />
-                    </div>
-                  </div>
-
-                  <p className="text-[11px] text-gray-500 leading-relaxed pt-1">
-                    🔒 Pago protegido con cifrado SSL. <strong>Este entorno es de prueba</strong> y no realiza ningún cobro real.
+                  <p className="text-xs sm:text-sm text-gray-200 opacity-90 leading-relaxed">
+                    Stripe solicitará los datos de la tarjeta en una página segura oficial y encriptada. No se almacenan datos bancarios en esta web.
                   </p>
                 </div>
               )}

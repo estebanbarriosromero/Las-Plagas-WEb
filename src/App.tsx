@@ -27,7 +27,7 @@ export default function App() {
   const [isCartBouncing, setIsCartBouncing] = useState(false);
   const [lastOrderData, setLastOrderData] = useState<OrderData | null>(null);
 
-  // Initialize EmailJS & Restore stored session
+  // Initialize EmailJS & Restore stored session & Stripe redirects
   useEffect(() => {
     initEmailJS();
 
@@ -42,6 +42,34 @@ export default function App() {
       }
     } catch (e) {
       console.error('Error restaurando sesión:', e);
+    }
+
+    // Check Stripe return URL
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get('payment') === 'success') {
+        const fakeOrderId = '#PO-' + Math.floor(100000 + Math.random() * 900000);
+        setLastOrderData({
+          orderId: fakeOrderId,
+          customerName: currentUser?.name || 'Cliente',
+          customerEmail: currentUser?.email || 'Confirmado por Stripe',
+          shippingAddress: 'Dirección confirmada en Stripe',
+          shippingZip: '',
+          shippingCity: '',
+          paymentMethod: 'TARJETA (STRIPE CHECKOUT)',
+          total: 'Pago procesado',
+          products: [],
+        });
+        setCart([]);
+        setCurrentView('view-success');
+        showToast('¡Pago con Stripe completado con éxito!');
+        window.history.replaceState({}, document.title, window.location.pathname);
+      } else if (urlParams.get('payment') === 'cancel') {
+        showToast('Proceso de pago en Stripe cancelado.');
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+    } catch (e) {
+      console.error('Error leyendo parámetros de Stripe:', e);
     }
   }, []);
 
