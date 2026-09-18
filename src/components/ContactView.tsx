@@ -1,18 +1,23 @@
 import React, { useState } from 'react';
 import { sendContactEmail } from '../utils/email';
-import { MapPin, Phone, MessageCircle, Mail, Clock, Send, ShieldAlert } from 'lucide-react';
+import { downloadCompanyOrdersExcel, COMPANY_DATA_EMAIL } from '../utils/excel';
+import { User } from '../types';
+import { MapPin, Phone, MessageCircle, Mail, Clock, Send, Database } from 'lucide-react';
 
 interface ContactViewProps {
+  currentUser?: User | null;
   showToast: (msg: string) => void;
 }
 
-export const ContactView: React.FC<ContactViewProps> = ({ showToast }) => {
-  const [name, setName] = useState('');
+export const ContactView: React.FC<ContactViewProps> = ({ currentUser, showToast }) => {
+  const [name, setName] = useState(currentUser?.name || '');
   const [phone, setPhone] = useState('');
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(currentUser?.email || '');
   const [subject, setSubject] = useState('Consulta general');
   const [message, setMessage] = useState('');
   const [isSending, setIsSending] = useState(false);
+
+  const isCompanyUser = currentUser?.email?.toLowerCase() === COMPANY_DATA_EMAIL.toLowerCase();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,9 +40,9 @@ export const ContactView: React.FC<ContactViewProps> = ({ showToast }) => {
 
       if (res.success) {
         showToast('Mensaje enviado correctamente. Te responderemos pronto.');
-        setName('');
+        setName(currentUser?.name || '');
         setPhone('');
-        setEmail('');
+        setEmail(currentUser?.email || '');
         setMessage('');
         setSubject('Consulta general');
       } else {
@@ -47,6 +52,13 @@ export const ContactView: React.FC<ContactViewProps> = ({ showToast }) => {
       alert(`Error al enviar: ${err?.message || 'Error inesperado'}`);
     } finally {
       setIsSending(false);
+    }
+  };
+
+  const handleDownloadDatabase = () => {
+    const ok = downloadCompanyOrdersExcel();
+    if (ok) {
+      showToast('Base de datos de pedidos descargada correctamente.');
     }
   };
 
@@ -206,6 +218,18 @@ export const ContactView: React.FC<ContactViewProps> = ({ showToast }) => {
               <p className="text-gray-200">soporte@plagasonline.es</p>
             </div>
           </div>
+
+          {/* Admin Database Download Button if logged in with company account */}
+          {isCompanyUser && (
+            <button
+              type="button"
+              id="contact-company-orders-download"
+              onClick={handleDownloadDatabase}
+              className="w-full bg-white/20 hover:bg-white/30 text-white font-bold py-2.5 px-4 rounded-xl text-xs flex items-center justify-center gap-2 border border-white/30 transition-all cursor-pointer shadow-sm mt-2"
+            >
+              <Database className="w-4 h-4 text-green-300" /> Descargar base de datos
+            </button>
+          )}
         </div>
 
         <div className="bg-white/10 p-4 rounded-xl border border-white/10 space-y-1 text-xs">

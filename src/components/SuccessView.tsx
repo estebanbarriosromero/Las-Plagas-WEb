@@ -1,7 +1,7 @@
 import React from 'react';
 import { OrderData, ViewType } from '../types';
-import { exportOrderToExcel } from '../utils/excel';
-import { CheckCircle2, FileSpreadsheet, Store } from 'lucide-react';
+import { exportOrderToExcel, downloadCompanyOrdersExcel } from '../utils/excel';
+import { CheckCircle2, FileSpreadsheet, Store, Database } from 'lucide-react';
 
 interface SuccessViewProps {
   orderData: OrderData | null;
@@ -14,16 +14,23 @@ export const SuccessView: React.FC<SuccessViewProps> = ({
   onNavigate,
   showToast,
 }) => {
-  const handleDownloadExcel = () => {
+  const handleDownloadSingleExcel = () => {
     if (!orderData) {
       alert('No hay datos del pedido para exportar.');
       return;
     }
     const success = exportOrderToExcel(orderData);
     if (success) {
-      showToast('Archivo Excel descargado con éxito.');
+      showToast('Archivo Excel del pedido descargado.');
     } else {
       alert('No se pudo generar el archivo Excel.');
+    }
+  };
+
+  const handleDownloadCompanyExcel = () => {
+    const success = downloadCompanyOrdersExcel();
+    if (success) {
+      showToast('Descargando archivo "Pedidos Empresa.xlsx"...');
     }
   };
 
@@ -58,17 +65,25 @@ export const SuccessView: React.FC<SuccessViewProps> = ({
         </div>
       </div>
 
-      <div className="flex flex-col sm:flex-row justify-center gap-3">
+      <div className="flex flex-col sm:flex-row justify-center gap-3 flex-wrap">
         <button
-          onClick={handleDownloadExcel}
-          className="bg-gray-700 hover:bg-gray-800 text-white font-bold py-3 px-5 rounded-lg text-sm transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-sm"
+          onClick={handleDownloadSingleExcel}
+          className="bg-gray-700 hover:bg-gray-800 text-white font-bold py-2.5 px-4 rounded-lg text-xs sm:text-sm transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-sm"
         >
           <FileSpreadsheet className="w-4 h-4 text-green-400" /> Descargar pedido en Excel
         </button>
 
         <button
+          id="company-orders-download"
+          onClick={handleDownloadCompanyExcel}
+          className="bg-[#003366] hover:bg-[#002244] text-white font-bold py-2.5 px-4 rounded-lg text-xs sm:text-sm transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-sm"
+        >
+          <Database className="w-4 h-4 text-amber-400" /> Descargar Pedidos Empresa
+        </button>
+
+        <button
           onClick={() => onNavigate('view-inicio')}
-          className="bg-[#e65100] hover:bg-[#c63f00] text-white font-bold py-3 px-6 rounded-lg text-sm transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md active:scale-98"
+          className="bg-[#e65100] hover:bg-[#c63f00] text-white font-bold py-2.5 px-5 rounded-lg text-xs sm:text-sm transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md active:scale-98"
         >
           <Store className="w-4 h-4" /> Volver a la Tienda
         </button>

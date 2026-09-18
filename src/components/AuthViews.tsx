@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { User, ViewType } from '../types';
-import { LogIn, UserPlus, ShieldCheck } from 'lucide-react';
+import { COMPANY_DATA_EMAIL, COMPANY_DATA_PASSWORD } from '../utils/excel';
+import { LogIn, UserPlus } from 'lucide-react';
 
 interface AuthViewsProps {
   currentView: 'view-login' | 'view-registro';
@@ -54,11 +55,15 @@ export const AuthViews: React.FC<AuthViewsProps> = ({
     }
 
     const users = getStoredUsers();
-    const matched = users.find(
-      (u) =>
-        (u.email.toLowerCase() === emailNorm || u.name.toLowerCase() === emailNorm) &&
-        u.password === pass
-    );
+    const isCompanyAccount = emailNorm === COMPANY_DATA_EMAIL.toLowerCase() && pass === COMPANY_DATA_PASSWORD;
+
+    const matched: User | undefined = isCompanyAccount
+      ? { name: 'Cuenta técnica', email: COMPANY_DATA_EMAIL }
+      : users.find(
+          (u) =>
+            (u.email.toLowerCase() === emailNorm || u.name.toLowerCase() === emailNorm) &&
+            u.password === pass
+        );
 
     if (!matched) {
       alert('Correo o contraseña incorrectos. Comprueba tus datos o regístrate primero.');
@@ -78,6 +83,11 @@ export const AuthViews: React.FC<AuthViewsProps> = ({
 
     if (!name || !emailNorm || !pass) {
       alert('Por favor completa nombre, correo y contraseña.');
+      return;
+    }
+
+    if (emailNorm === COMPANY_DATA_EMAIL.toLowerCase()) {
+      alert('Esta cuenta está reservada para la administración y no puede registrarse desde la web.');
       return;
     }
 

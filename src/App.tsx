@@ -198,7 +198,7 @@ export default function App() {
           )}
 
           {currentView === 'view-contacto' && (
-            <ContactView showToast={showToast} />
+            <ContactView currentUser={currentUser} showToast={showToast} />
           )}
 
           {(currentView === 'view-login' || currentView === 'view-registro') && (
