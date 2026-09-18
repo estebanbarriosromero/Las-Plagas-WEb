@@ -1,0 +1,6 @@
+{
+  "name": "PlagasOnline - Especialistas en Control de Plagas",
+  "description": "Tienda online especializada en control profesional de plagas, raticidas, insecticidas, trampas y equipos de desinfección.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
